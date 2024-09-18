@@ -164,6 +164,7 @@ BLYNK_WRITE(V0)
 }
 
 void virtualWriteV0(int value) {
+  switchPum = value;
   Blynk.virtualWrite(V0,value);
 }
 
