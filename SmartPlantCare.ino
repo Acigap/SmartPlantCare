@@ -212,9 +212,9 @@ void loop() {
     checkSoilMoisture(soilMoisture);  // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
 
     if(getSwitchPum() > 0) {
-      controlWaterPump(true);  // เปิดปั้มน้ำ
+      digitalWrite(RELAY_PIN, LOW);  // เปิดปั้มน้ำ  // เปิดปั้มน้ำ
     } else {
-      controlWaterPump(false);  // ปิดปั้มน้ำ
+      digitalWrite(RELAY_PIN, HIGH);  // เปิดปั้มน้ำ  // ปิดปั้มน้ำ
     }
   }
 
