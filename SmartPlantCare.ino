@@ -1,4 +1,4 @@
-//This sketch is an example of reading time from NTP
+//This sketch is an SmartPlantCare 
 #define CUSTOM_TIMEZONE "CST-8" China time zone
 #include <TFT_eSPI.h>    // สำหรับหน้าจอ T-display-s3
 #include "hothead.h"
@@ -7,9 +7,11 @@
 #include "Free_Fonts.h"  //free fonts must be included in the folder and quotes
 #include "ControlSDCard.h"  // สำหรับจัดการเรื่อง SD Card และไฟล์
 #include "BlynkData.h"
+#include "ServerSD.h"
 
 const char *ssid = "iStyleM";
 const char *password = "015321418gG";
+const char* hostSDServer = "esp32sd";
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 25200;  // GMT +7
 const int daylightOffset_sec = 0;
@@ -19,8 +21,9 @@ const int daylightOffset_sec = 0;
 #define BUTTOPN_PIN 14           // พินของ ปุ่มล่าง ของจอด้านหน้า
 
 bool buttonState = 0;  // อ่านค่าปุ่มกด
+int switchPumState = 0;
 int dryValue = 4095;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
-int wetValue = 2300;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
+int wetValue = 1450;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
 int soilMoisture = 0;  // ค่าความชื้อนนดินที่อ่านได้
 int oldMoisture = 0;   // ค่าก่อน update
 String lastWatering = ""; // เวลารดน้ำล่าสุด
@@ -57,9 +60,13 @@ int readSoilMoisture() {
   } else if (soilMoisturePercent < 0) {
     soilMoisturePercent = 0;
   }
- 
   virtualWriteV2(soilMoisturePercent);
   return soilMoisturePercent;
+}
+
+void logSDd(const char *action, const char *value) {
+  String data = getCurrentDateTime() +  String(",") + String(action) +  String(",") + String(value) +  String("\n");
+  appendFile(csvFilename, data.c_str());
 }
 
 void controlWaterPump(bool state) {
@@ -67,9 +74,11 @@ void controlWaterPump(bool state) {
     lastWatering = getCurrentDateTime();
     digitalWrite(RELAY_PIN, LOW);  // เปิดปั้มน้ำ
     virtualWriteV0(1);
+    logSDd("WaterPumpStateChange", "Start");
   } else {
     digitalWrite(RELAY_PIN, HIGH);  // ปิดปั้มน้ำ
     virtualWriteV0(0);
+    logSDd("WaterPumpStateChange", "Stop");
   }
 }
 
@@ -90,9 +99,11 @@ void displayInfo(int moisture, int days, String strLastWatering) {
 
 void checkSoilMoisture(int moisture) {
   if (oldMoisture > 40 && moisture < 40) {  // ค่าความชื้นต่ำ
+    logsSoilMoisture(moisture);
     controlWaterPump(true);
     //logData(moisture, "Auto Watering");
   } else if (oldMoisture <40 && moisture > 40) {
+    logsSoilMoisture(moisture);
     controlWaterPump(false);
   }
 
@@ -166,6 +177,12 @@ void initWiFi() {
   Serial.println(WiFi.localIP());
 }
 
+void logsSoilMoisture(int soilMoisture) {
+  char buf[4];
+  itoa(soilMoisture, buf, 10);
+  logSDd("SoilMoisture",buf);
+}
+
 void setup() {
   pinMode(RELAY_PIN, OUTPUT);    // ตั้งพินสำหรับ relay เป็น output
   pinMode(BUTTOPN_PIN, INPUT);
@@ -178,10 +195,6 @@ void setup() {
   Serial.begin(115200);  // be sure to set USB CDC On Boot: "Enabled"
 
   setupSDCard();
-
-  writeFile("/hello.txt", "Hello ");
-  appendFile("/hello.txt", "World!\n");
-  readFile("/hello.txt");
 
   WiFi.mode(WIFI_STA);
   tft.fillRect(0, 165, 130, 60, TFT_CYAN);  //horiz, vert
@@ -202,24 +215,50 @@ void setup() {
   tft.setCursor(5, 25);
   tft.println("SmartPlantCare");
 
-  initWiFi();
-  setupBlynk();
+  initWiFi();    // ตั้งค่า wifi
+  setupBlynk();   // ตั้งค่า Blynk lib
+  setupServerSD(hostSDServer);  // ตั้งค่า web server
+
+  // log
+  String str = readFileToString(csvFilename);
+  if (str.isEmpty()) {
+    Serial.println("writeFile: " + String(csvFilename));
+    writeFile(csvFilename,"time, action, value\n");
+  }
+  logSDd("Start", "init ok.");
+  //readFile(csvFilename);
 }
 
 void loop() {
   if (millis() % 500 == 0 ) {
     soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
     checkSoilMoisture(soilMoisture);  // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
+  }
+  if (millis() - lastDisplayTime >= 3000) {  // 3000 ms = 1 วินาที
+    // แสดงข้อมูลบนหน้าจอ
+    int daysPlanted = calculateDaysPlanted();         // คำนวณจำนวนวันที่ปลูกมาแล้ว
+    displayInfo(soilMoisture, daysPlanted, lastWatering);  // อัปเดตข้อมูลบนหน้าจอ
+    lastDisplayTime = millis();                 // อัปเดตเวลาล่าสุดที่แสดงจอ
+  }
+  if (millis() - lastLogTime >= 180000) {  // 3000 = 1sec. * 60  = 18000sec. (1 นาที)
+    logsSoilMoisture(soilMoisture);
+    lastLogTime = millis();                 // อัปเดตเวลาล่าสุดที่บันทึกข้อมูล
+  }
 
-    if(getSwitchPum() > 0) {
+  // Check switchPum from Blynk server
+  int switchPumData = getSwitchPum();
+  if(switchPumState != switchPumData) {
+    if(switchPumData > 0) {
       digitalWrite(RELAY_PIN, LOW);  // เปิดปั้มน้ำ  // เปิดปั้มน้ำ
+      logSDd("controlWaterPump", "Start");
     } else {
       digitalWrite(RELAY_PIN, HIGH);  // เปิดปั้มน้ำ  // ปิดปั้มน้ำ
+      logSDd("controlWaterPump", "Stop");
     }
+    switchPumState = switchPumData;
   }
 
   buttonState = digitalRead(BUTTOPN_PIN);
-
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
   if (buttonState == HIGH) {
     // turn LED on:
@@ -229,12 +268,6 @@ void loop() {
     digitalWrite(PIN_LCD_BL, LOW);
   }
 
-  if (millis() - lastDisplayTime >= 3000) {  // 3000 ms = 1 วินาที
-    // แสดงข้อมูลบนหน้าจอ
-    int daysPlanted = calculateDaysPlanted();         // คำนวณจำนวนวันที่ปลูกมาแล้ว
-    displayInfo(soilMoisture, daysPlanted, lastWatering);  // อัปเดตข้อมูลบนหน้าจอ
-    lastDisplayTime = millis();                 // อัปเดตเวลาล่าสุดที่แสดงจอ
-  }
-
   loopBlynk();
+  loopServerSD();
 }
