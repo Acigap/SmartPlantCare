@@ -15,6 +15,7 @@ const char* hostSDServer = "esp32sd";
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 25200;  // GMT +7
 const int daylightOffset_sec = 0;
+const char *startPlanTimeFilename = "/startPlanTime.txt";
 
 #define RELAY_PIN 1           // พินของ relay
 #define SOIL_MOISTURE_PIN 2  // ขาอนาล็อกที่ใช้ในการวัดความชื้นในดิน
@@ -22,11 +23,14 @@ const int daylightOffset_sec = 0;
 
 bool buttonState = 0;  // อ่านค่าปุ่มกด
 int switchPumState = 0;
-int dryValue = 4095;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
-int wetValue = 1450;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
+bool waterPumpState = 0;
+int dryValue = 4060;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
+int wetValue = 0;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
 int soilMoisture = 0;  // ค่าความชื้อนนดินที่อ่านได้
 int oldMoisture = 0;   // ค่าก่อน update
-String lastWatering = ""; // เวลารดน้ำล่าสุด
+int displayCountDown = 30; // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
+int buttonCountDown = 0; // hold button count
+String lastWatering = ""; // เวลารดน้ำล่าสุด  
 
 static unsigned long lastLogTime = 0;  // loop check log time
 static unsigned long lastDisplayTime = 0; // loop check display time
@@ -49,8 +53,8 @@ int calculateDaysPlanted() {
 
 int readSoilMoisture() {
   int soilMoistureValue = analogRead(SOIL_MOISTURE_PIN);  // อ่านค่าจากเซนเซอร์
-  //Serial.print("soilMoistureValue:");
-  //Serial.println(soilMoistureValue);
+  // Serial.print("soilMoisture: ");
+  // Serial.println(soilMoistureValue);
   // แปลงค่าอนาล็อกเป็นเปอร์เซ็นต์
   int soilMoisturePercent = map(soilMoistureValue, wetValue, dryValue, 100, 0);
 
@@ -60,7 +64,6 @@ int readSoilMoisture() {
   } else if (soilMoisturePercent < 0) {
     soilMoisturePercent = 0;
   }
-  virtualWriteV2(soilMoisturePercent);
   return soilMoisturePercent;
 }
 
@@ -70,6 +73,12 @@ void logSDd(const char *action, const char *value) {
 }
 
 void controlWaterPump(bool state) {
+  if(waterPumpState == state) {
+    return;
+  }
+  logsSoilMoisture(readSoilMoisture());
+  waterPumpState = state;
+  displayCountDown = 30;
   if (state) {
     lastWatering = getCurrentDateTime();
     digitalWrite(RELAY_PIN, LOW);  // เปิดปั้มน้ำ
@@ -92,21 +101,18 @@ void displayInfo(int moisture, int days, String strLastWatering) {
   tft.println("Current Time:");
   tft.println(getCurrentDateTime());
   tft.println("Last Watering: ");
-   tft.println(strLastWatering);
+  tft.println(strLastWatering);
   tft.println("Soil Moisture: " + String(moisture));
-  tft.println("Days: " + String(days));
+  tft.println("Days: " + String(days) + "\n");
 }
 
 void checkSoilMoisture(int moisture) {
   if (oldMoisture > 40 && moisture < 40) {  // ค่าความชื้นต่ำ
-    logsSoilMoisture(moisture);
     controlWaterPump(true);
-    //logData(moisture, "Auto Watering");
-  } else if (oldMoisture <40 && moisture > 40) {
-    logsSoilMoisture(moisture);
+  } else if (oldMoisture <70 && moisture > 70) {
     controlWaterPump(false);
   }
-
+  virtualWriteV2(moisture);
   oldMoisture = moisture;
 }
 
@@ -183,6 +189,14 @@ void logsSoilMoisture(int soilMoisture) {
   logSDd("SoilMoisture",buf);
 }
 
+void createLogFile() {
+  String str = readFileToString(csvFilename);
+  if (str.isEmpty()) {
+    Serial.println("writeFile: " + String(csvFilename));
+    writeFile(csvFilename,"time, action, value\n");
+  }
+}
+
 void setup() {
   pinMode(RELAY_PIN, OUTPUT);    // ตั้งพินสำหรับ relay เป็น output
   pinMode(BUTTOPN_PIN, INPUT);
@@ -220,25 +234,27 @@ void setup() {
   setupServerSD(hostSDServer);  // ตั้งค่า web server
 
   // log
-  String str = readFileToString(csvFilename);
-  if (str.isEmpty()) {
-    Serial.println("writeFile: " + String(csvFilename));
-    writeFile(csvFilename,"time, action, value\n");
-  }
+  createLogFile();
   logSDd("Start", "init ok.");
   //readFile(csvFilename);
+ // readFile(startPlanTimeFilename);
+  String startStr = readFileToString(startPlanTimeFilename);
+  plantingTime = startStr.toInt(); 
+  Serial.println("startStr: " + startStr);
+  Serial.println(plantingTime);
 }
 
 void loop() {
-  if (millis() % 500 == 0 ) {
-    soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
-    checkSoilMoisture(soilMoisture);  // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
-  }
+  soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
+  checkSoilMoisture(soilMoisture);  // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
+  
   if (millis() - lastDisplayTime >= 3000) {  // 3000 ms = 1 วินาที
     // แสดงข้อมูลบนหน้าจอ
     int daysPlanted = calculateDaysPlanted();         // คำนวณจำนวนวันที่ปลูกมาแล้ว
     displayInfo(soilMoisture, daysPlanted, lastWatering);  // อัปเดตข้อมูลบนหน้าจอ
     lastDisplayTime = millis();                 // อัปเดตเวลาล่าสุดที่แสดงจอ
+    displayCountDown--;
+    if(displayCountDown <0) {displayCountDown = 0;}
   }
   if (millis() - lastLogTime >= 180000) {  // 3000 = 1sec. * 60  = 18000sec. (1 นาที)
     logsSoilMoisture(soilMoisture);
@@ -260,12 +276,47 @@ void loop() {
 
   buttonState = digitalRead(BUTTOPN_PIN);
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
-  if (buttonState == HIGH) {
-    // turn LED on:
-    digitalWrite(PIN_LCD_BL, HIGH);
+  if (buttonState == LOW) {
+    displayCountDown = 30;
+    buttonCountDown--;
+    if(buttonCountDown < 0) {
+      plantingTime = time(NULL);
+      char temp[10];
+      ltoa(plantingTime,temp,10);
+      writeFile(startPlanTimeFilename, temp);
+      buttonCountDown = 30;
+      Serial.println(plantingTime);
+      Serial.println(temp);
+      
+      // เคลียร์ log file โดยการเปลียนชื่อเป็น timestamp แล้วสร้างใหม่
+      String filename = "/" + String(temp) + ".csv";
+      renameFile(csvFilename, filename.c_str());
+      delay(200);
+      createLogFile();
+
+      tft.fillScreen(TFT_BLACK);
+      tft.pushImage(165, 0, 155, 170, hothead);
+      tft.setCursor(10, 50);
+      tft.setFreeFont(FSS9);
+      tft.setTextColor(TFT_GREEN);
+      tft.println("Set start Day finish..");
+      delay(3000);
+    } else {
+      Serial.println(buttonCountDown);
+      tft.fillRect(5, 145, 165, 175, TFT_BLACK);  //horiz, vert
+      tft.setCursor(5, 160);
+      tft.println("Set start day <-- " + String(buttonCountDown));
+    }
   } else {
-    // turn LED off:
+    buttonCountDown = 30;
+  }
+
+  if(displayCountDown <= 0) {
+     // turn LED off:
     digitalWrite(PIN_LCD_BL, LOW);
+  } else {
+     // turn LED on:
+    digitalWrite(PIN_LCD_BL, HIGH);
   }
 
   loopBlynk();

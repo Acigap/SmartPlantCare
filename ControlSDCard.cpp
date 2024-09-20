@@ -46,9 +46,9 @@ String readFileToString(const char *path)
     return "";
   }
   
-  String s;
+  String s = "";
   while (file.available()){
-    s += file.read();
+    s +=  (char)file.read();
   }
   return s;
 }
