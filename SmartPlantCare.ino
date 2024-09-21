@@ -8,6 +8,7 @@
 #include "ControlSDCard.h"  // สำหรับจัดการเรื่อง SD Card และไฟล์
 #include "BlynkData.h"
 #include "ServerSD.h"
+#include "smart_irrigation.h"
 
 const char *ssid = "iStyleM";
 const char *password = "015321418gG";
@@ -24,13 +25,14 @@ const char *startPlanTimeFilename = "/startPlanTime.txt";
 bool buttonState = 0;  // อ่านค่าปุ่มกด
 int switchPumState = 0;
 bool waterPumpState = 0;
-int dryValue = 4060;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
+int dryValue = 4000;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
 int wetValue = 0;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
 int soilMoisture = 0;  // ค่าความชื้อนนดินที่อ่านได้
-int oldMoisture = 0;   // ค่าก่อน update
 int displayCountDown = 30; // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
 int buttonCountDown = 0; // hold button count
 String lastWatering = ""; // เวลารดน้ำล่าสุด  
+
+VeggieType veggie = CHILI;  // เลือกชนิดของผัก (พริก)
 
 static unsigned long lastLogTime = 0;  // loop check log time
 static unsigned long lastDisplayTime = 0; // loop check display time
@@ -93,27 +95,29 @@ void controlWaterPump(bool state) {
 
 void displayInfo(int moisture, int days, String strLastWatering) {
   tft.fillScreen(TFT_BLACK);
-  tft.pushImage(165, 0, 155, 170, hothead);
-  tft.setCursor(0, 20);
-  tft.setFreeFont(FSS9);
-  tft.setTextColor(TFT_WHITE);
+  tft.pushImage(165, 10, 155, 170, hothead);
 
-  tft.println("Current Time:");
+  int threshold, stop;
+  getMoistureRange(veggie, threshold, stop);
+
+  tft.setTextColor(TFT_WHITE);
+  tft.setFreeFont(FSS9);
+  tft.setCursor(165, 18);
   tft.println(getCurrentDateTime());
+  tft.setCursor(0, 18);
+  tft.println("Plant Date: " + String(days));
+  tft.println("Veggie: " + String(veggieToString(veggie)));
+  tft.println("Water: " + String(threshold) + " Stop: " + String(stop));
   tft.println("Last Watering: ");
   tft.println(strLastWatering);
-  tft.println("Soil Moisture: " + String(moisture));
-  tft.println("Days: " + String(days) + "\n");
+  tft.println("Soil Moisture(%): " + String(moisture) + "\n");
 }
 
 void checkSoilMoisture(int moisture) {
-  if (oldMoisture > 40 && moisture < 40) {  // ค่าความชื้นต่ำ
-    controlWaterPump(true);
-  } else if (oldMoisture <70 && moisture > 70) {
-    controlWaterPump(false);
-  }
+  // ตรวจสอบการควบคุมปั๊มน้ำ
+  bool isPumpOn = checkPumpControl(veggie, moisture);
+  controlWaterPump(isPumpOn);
   virtualWriteV2(moisture);
-  oldMoisture = moisture;
 }
 
 // ฟังก์ชันสำหรับดึงและแสดงวันที่และเวลาปัจจุบันในรูปแบบ yyyy-mm-dd HH:mm
@@ -284,7 +288,7 @@ void loop() {
       char temp[10];
       ltoa(plantingTime,temp,10);
       writeFile(startPlanTimeFilename, temp);
-      buttonCountDown = 30;
+      buttonCountDown = 33;
       Serial.println(plantingTime);
       Serial.println(temp);
       
@@ -299,16 +303,18 @@ void loop() {
       tft.setCursor(10, 50);
       tft.setFreeFont(FSS9);
       tft.setTextColor(TFT_GREEN);
-      tft.println("Set start Day finish..");
+      tft.println("Set start plant finish..");
       delay(3000);
     } else {
       Serial.println(buttonCountDown);
       tft.fillRect(5, 145, 165, 175, TFT_BLACK);  //horiz, vert
       tft.setCursor(5, 160);
-      tft.println("Set start day <-- " + String(buttonCountDown));
+      if(buttonCountDown <= 30) {// ไม่แสดงค่านับถอนหลัง้ากดไปแค่ 1-2 วินาที
+        tft.println("Set start plant <-- " + String(buttonCountDown));
+      }
     }
   } else {
-    buttonCountDown = 30;
+    buttonCountDown = 33;
   }
 
   if(displayCountDown <= 0) {
