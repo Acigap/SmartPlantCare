@@ -11,7 +11,7 @@
 
 const char* host = "blynk.cloud";
 int port = 80;
-int switchPum = 0;
+static int switchPum = 0;
 
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -155,8 +155,9 @@ int getSwitchPum() {
 
 BLYNK_WRITE(V0)
 {   
-  switchPum = param[0].asInt(); // Get value as integer
-  Serial.println("switchPum:" + switchPum);
+  switchPum = (param.asInt()); // Get value as integer
+  Serial.println("switchPum:");
+  Serial.println(switchPum);
 
   // The param can contain multiple values, in such case:
   // int x = param[0].asInt();

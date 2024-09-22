@@ -22,12 +22,14 @@ const char *startPlanTimeFilename = "/startPlanTime.txt";
 #define SOIL_MOISTURE_PIN 2  // ขาอนาล็อกที่ใช้ในการวัดความชื้นในดิน
 #define BUTTOPN_PIN 14           // พินของ ปุ่มล่าง ของจอด้านหน้า
 
-bool buttonState = 0;  // อ่านค่าปุ่มกด
+// เก็บ State กันการ set ค่าซ้ำ
+bool buttonState = 0;  
 int switchPumState = 0;
 bool waterPumpState = 0;
-int dryValue = 4000;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
+bool checkSoilStat = 0;
+
+int dryValue = 4095;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
 int wetValue = 0;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
-int soilMoisture = 0;  // ค่าความชื้อนนดินที่อ่านได้
 int displayCountDown = 30; // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
 int buttonCountDown = 0; // hold button count
 String lastWatering = ""; // เวลารดน้ำล่าสุด  
@@ -36,7 +38,7 @@ VeggieType veggie = CHILI;  // เลือกชนิดของผัก (�
 
 static unsigned long lastLogTime = 0;  // loop check log time
 static unsigned long lastDisplayTime = 0; // loop check display time
-time_t plantingTime = 1680000000;  // เวลาในรูปแบบ epoch เมื่อเริ่มปลูก TODO: ต้องทำตัวเก็บเวลาเริ่มต้น
+time_t plantingTime = 1680000000;  // เวลาในรูปแบบ epoch เมื่อเริ่มปลูก
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprite = TFT_eSprite(&tft);
@@ -54,16 +56,22 @@ int calculateDaysPlanted() {
 }
 
 int readSoilMoisture() {
-  int soilMoistureValue = analogRead(SOIL_MOISTURE_PIN);  // อ่านค่าจากเซนเซอร์
-  // Serial.print("soilMoisture: ");
-  // Serial.println(soilMoistureValue);
-  // แปลงค่าอนาล็อกเป็นเปอร์เซ็นต์
-  int soilMoisturePercent = map(soilMoistureValue, wetValue, dryValue, 100, 0);
+  int total = 0;
+  int readings = 5; // จำนวนครั้งที่ต้องการอ่านค่า
 
+  // อ่านค่าจาก SOIL_MOISTURE_PIN จำนวน 3 ครั้งแล้วรวมค่า
+  for (int i = 0; i < readings; i++) {
+    total += analogRead(SOIL_MOISTURE_PIN);  // อ่านค่า SOIL_MOISTURE_PIN
+    delay(30);                // หน่วงเวลาเล็กน้อย (30 ms) ระหว่างการอ่านแต่ละครั้ง
+  }
+
+  // หาค่าเฉลี่ย
+  int average = total / readings;
+  int soilMoisturePercent = map(average, wetValue, dryValue, 100, 0);
   // ตรวจสอบว่าค่าความชื้นอยู่ในช่วงที่ถูกต้อง
-  if (soilMoisturePercent > 100) {
+  if (soilMoisturePercent >= 100) {
     soilMoisturePercent = 100;
-  } else if (soilMoisturePercent < 0) {
+  } else if (soilMoisturePercent <= 0) {
     soilMoisturePercent = 0;
   }
   return soilMoisturePercent;
@@ -74,23 +82,30 @@ void logSDd(const char *action, const char *value) {
   appendFile(csvFilename, data.c_str());
 }
 
-void controlWaterPump(bool state) {
+void controlWaterPump(bool state, int moisture, bool isManual) {
   if(waterPumpState == state) {
     return;
   }
-  logsSoilMoisture(readSoilMoisture());
+  logsSoilMoisture(moisture);
   waterPumpState = state;
   displayCountDown = 30;
+  char *action = "ControlPump";
+  if (isManual) {
+    action = "ManualPump";
+  } else {
+    virtualWriteV0(state);
+  }
+
   if (state) {
     lastWatering = getCurrentDateTime();
     digitalWrite(RELAY_PIN, LOW);  // เปิดปั้มน้ำ
-    virtualWriteV0(1);
-    logSDd("WaterPumpStateChange", "Start");
+    logSDd(action, "Start");
   } else {
     digitalWrite(RELAY_PIN, HIGH);  // ปิดปั้มน้ำ
-    virtualWriteV0(0);
-    logSDd("WaterPumpStateChange", "Stop");
+    logSDd(action, "Stop");
   }
+  
+  Serial.println(String(action) + "" + String(state));
 }
 
 void displayInfo(int moisture, int days, String strLastWatering) {
@@ -114,10 +129,14 @@ void displayInfo(int moisture, int days, String strLastWatering) {
 }
 
 void checkSoilMoisture(int moisture) {
+  virtualWriteV2(moisture);
   // ตรวจสอบการควบคุมปั๊มน้ำ
   bool isPumpOn = checkPumpControl(veggie, moisture);
-  controlWaterPump(isPumpOn);
-  virtualWriteV2(moisture);
+  if (checkSoilStat == isPumpOn) {
+    return;
+  }
+  checkSoilStat = isPumpOn;
+  controlWaterPump(isPumpOn, moisture, false);
 }
 
 // ฟังก์ชันสำหรับดึงและแสดงวันที่และเวลาปัจจุบันในรูปแบบ yyyy-mm-dd HH:mm
@@ -239,7 +258,7 @@ void setup() {
 
   // log
   createLogFile();
-  logSDd("Start", "init ok.");
+  logSDd("Esp32Start", "initOK");
   //readFile(csvFilename);
  // readFile(startPlanTimeFilename);
   String startStr = readFileToString(startPlanTimeFilename);
@@ -249,10 +268,10 @@ void setup() {
 }
 
 void loop() {
-  soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
+  int soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
   checkSoilMoisture(soilMoisture);  // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
   
-  if (millis() - lastDisplayTime >= 3000) {  // 3000 ms = 1 วินาที
+  if (millis() - lastDisplayTime >= 1000) {  // 1000 ms = 1 วินาที
     // แสดงข้อมูลบนหน้าจอ
     int daysPlanted = calculateDaysPlanted();         // คำนวณจำนวนวันที่ปลูกมาแล้ว
     displayInfo(soilMoisture, daysPlanted, lastWatering);  // อัปเดตข้อมูลบนหน้าจอ
@@ -260,7 +279,7 @@ void loop() {
     displayCountDown--;
     if(displayCountDown <0) {displayCountDown = 0;}
   }
-  if (millis() - lastLogTime >= 180000) {  // 3000 = 1sec. * 60  = 18000sec. (1 นาที)
+  if (millis() - lastLogTime >= 60000) {  // 1000 = 1sec. * 60  = 60000sec. (1 นาที)
     logsSoilMoisture(soilMoisture);
     lastLogTime = millis();                 // อัปเดตเวลาล่าสุดที่บันทึกข้อมูล
   }
@@ -268,13 +287,7 @@ void loop() {
   // Check switchPum from Blynk server
   int switchPumData = getSwitchPum();
   if(switchPumState != switchPumData) {
-    if(switchPumData > 0) {
-      digitalWrite(RELAY_PIN, LOW);  // เปิดปั้มน้ำ  // เปิดปั้มน้ำ
-      logSDd("controlWaterPump", "Start");
-    } else {
-      digitalWrite(RELAY_PIN, HIGH);  // เปิดปั้มน้ำ  // ปิดปั้มน้ำ
-      logSDd("controlWaterPump", "Stop");
-    }
+    controlWaterPump(switchPumData, soilMoisture, true);
     switchPumState = switchPumData;
   }
 

@@ -18,6 +18,8 @@
 +---------+------------+-------------+--------------+
 */
 
+static bool pumpStatus = false;
+
 // ฟังก์ชันที่ใช้คืนค่าความชื้นที่ควรรดน้ำและควรหยุดรดน้ำ
 void getMoistureRange(VeggieType veggie, int &threshold, int &stop) 
 {
@@ -76,18 +78,16 @@ const char* veggieToString(VeggieType veggie) {
     default:               return "Unknown";
   }
 }
-bool pumpStatus = false;
 
 // ฟังก์ชันที่ใช้ตรวจสอบและควบคุมปั๊มน้ำ
 bool checkPumpControl(VeggieType veggie, int soilMoisture) {
   int threshold, stop;
   getMoistureRange(veggie, threshold, stop);
 
-  if (soilMoisture < threshold) {
+  if (soilMoisture <= threshold) {
     pumpStatus = true;  // เปิดปั๊มน้ำ
-  } else if (soilMoisture > stop) {
+  } else if (soilMoisture >= stop) {
     pumpStatus = false; // ปิดปั๊มน้ำ
   }
-    
   return pumpStatus; // ไม่ทำอะไร ส่งค่าออกอย่างเดียว
 }
