@@ -90,27 +90,25 @@ void startWifiServer() {
     server.on("/", []() {
         String html = "<html lang='th'><head><meta charset='UTF-8'>";
         html += "<style>";
-        html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; }";
-        html += ".container { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.2); text-align: center; width: 300px; }";
+        html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; display: flex; justify-content: center; align-items: flex-start; height: 100vh; }";
+        html += ".container { background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }";
         html += "h1 { color: #5a5a5a; }";
         html += "h2 { color: #4CAF50; }";
         html += "ul { list-style-type: none; padding: 0; }";
         html += "li { margin: 10px 0; }";
         html += "a { text-decoration: none; color: #4CAF50; padding: 10px; border: 1px solid #4CAF50; border-radius: 5px; display: inline-block; transition: background-color 0.3s, color 0.3s; }";
         html += "a:hover { background-color: #4CAF50; color: white; }";
-        html += "</style></head><body>";
-        html += "<div class='container'>";
+        html += "</style></head><body><div class='container'>";
         html += "<h1>Menu</h1>";
-        html += "<p>Mode: " + String(WiFi.softAPIP().toString() == "0.0.0.0" ? "AP Mode" : "WiFi Connected") + "</p>";
-        html += "<p>SSID: " + String(WiFi.SSID()) + "</p>";
+        html += "<p>Mode: " + String(WiFi.softAPIP().toString() != "0.0.0.0" ? "AP Mode" : "WiFi Connected") + "</p>";
+        html += "<p>SSID: " + String(WiFi.SSID()) == "" ? String(apName) : String(WiFi.SSID()) + "</p>";
         html += "<h2>Select an Option</h2>";
         html += "<ul>";
         html += "<li><a href='/setup'>Setup WiFi</a></li>";
         html += "<li><a href='/download'>Download CSV Log</a></li>";
         html += "<li><a href='/veggieSelection'>Select Veggie Type</a></li>";
         html += "</ul>";
-        html += "</div>";
-        html += "</body></html>";
+        html += "</div></body></html>";
         server.send(200, "text/html", html);
     });
 
@@ -187,10 +185,10 @@ void startWifiServer() {
                 Serial.print(".");
                 attempt++;
             }
-
+          
             // ตรวจสอบสถานะการเชื่อมต่อ
             if (WiFi.status() == WL_CONNECTED) {
-                // บันทึก SSID และ Password ลงในหน่วยความจำถาวร
+              // บันทึก SSID และ Password ลงในหน่วยความจำถาวร
                 preferences.begin("WiFiCreds", false);
                 preferences.putString("ssid", newSSID);
                 preferences.putString("password", newPassword);
