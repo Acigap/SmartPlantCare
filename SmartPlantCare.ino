@@ -10,8 +10,6 @@
 #include "ServerSD.h"
 #include "smart_irrigation.h"
 
-const char *ssid = "iStyleM";
-const char *password = "015321418gG";
 const char* hostSDServer = "esp32sd";
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 25200;  // GMT +7
@@ -34,7 +32,7 @@ int displayCountDown = 30; // สำหรับนับถอยหลัง�
 int buttonCountDown = 0; // hold button count
 String lastWatering = ""; // เวลารดน้ำล่าสุด  
 
-VeggieType veggie = CHILI;  // เลือกชนิดของผัก (พริก)
+VeggieType veggie = KALE;  // เลือกชนิดของผัก (คะน้า)
 
 static unsigned long lastLogTime = 0;  // loop check log time
 static unsigned long lastDisplayTime = 0; // loop check display time
@@ -125,7 +123,8 @@ void displayInfo(int moisture, int days, String strLastWatering) {
   tft.println("Water: " + String(threshold) + " Stop: " + String(stop));
   tft.println("Last Watering: ");
   tft.println(strLastWatering);
-  tft.println("Soil Moisture(%): " + String(moisture) + "\n");
+  tft.println("Soil Moisture(%): " + String(moisture));
+  tft.println("Web: http://" + String(hostSDServer) + ".local");
 }
 
 void checkSoilMoisture(int moisture) {
@@ -175,16 +174,29 @@ void initWiFi() {
   tft.println("init WiFi");
   Serial.println("init WiFi");
   delay(500);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
+  WiFi.mode(WIFI_STA);
 
-  Serial.println("");
-  Serial.println("WiFi connected.");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+  // เริ่มต้น Preferences
+  preferences.begin("WiFiCreds", false);
+  // ดึง SSID และ Password ที่เก็บไว้
+  String ssid = preferences.getString("ssid", "");
+  String password = preferences.getString("password", "");
+  if (ssid.length() > 0 && password.length() > 0) {
+    // ถ้า SSID และ Password มีค่า จะลองเชื่อมต่อ WiFi
+    WiFi.begin(ssid.c_str(), password.c_str());
+    Serial.print("Connecting to WiFi");
+  }
+  preferences.end();  // ปิดการใช้งาน Preferences
+
+  int attempt = 0;
+  const int max_attempts = 20;
+
+  // ลูปพยายามเชื่อมต่อ WiFi
+  while (WiFi.status() != WL_CONNECTED && attempt < max_attempts) {
+      delay(500);
+      Serial.print(".");
+      attempt++;
+  }
 
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("WL  CONNECTED in initWiFi");
@@ -192,11 +204,12 @@ void initWiFi() {
     tft.setTextColor(TFT_GREEN);
     tft.setCursor(30, 50);
     tft.println("connected");
+    tft.println("LocalIP: " + WiFi.localIP());
     delay(1000);
   } else {
     Serial.println("WL not CONNECTED in initWiFi");
     tft.fillRect(10, 32, 130, 25, TFT_BLACK);  //horiz, vert
-    tft.setTextColor(TFT_GREEN);
+    tft.setTextColor(TFT_RED);
     tft.setCursor(30, 50);
     tft.println("No WiFi");
   }
@@ -204,6 +217,17 @@ void initWiFi() {
   Serial.println("");
   Serial.print("Connected to WiFi network with IP Address: ");
   Serial.println(WiFi.localIP());
+}
+
+// ฟังก์ชันที่ทำงานเมื่อข้อมูลมีการเปลี่ยนแปลง
+void onStartAPMode(String ip, String ap, String pwd) {
+  tft.fillRect(10, 32, 130, 25, TFT_BLACK);  //horiz, vert
+  tft.setTextColor(TFT_GREEN);
+  tft.setCursor(30, 50);
+  tft.println("Start AP Mode");
+  tft.println("AP: " + ap);
+  tft.println("PWD: " + pwd); 
+  tft.println("Server IP: " + ip); 
 }
 
 void logsSoilMoisture(int soilMoisture) {
@@ -233,14 +257,12 @@ void setup() {
 
   setupSDCard();
 
-  WiFi.mode(WIFI_STA);
   tft.fillRect(0, 165, 130, 60, TFT_CYAN);  //horiz, vert
   tft.setFreeFont(FSS9);
   tft.setTextColor(TFT_RED);
   tft.setCursor(30, 50);
   tft.print("in setup");
   tft.init();
-  WiFi.begin(ssid, password);
   Serial.println("          in setup");
   Serial.println("  ");
   tft.setRotation(3);
@@ -254,7 +276,7 @@ void setup() {
 
   initWiFi();    // ตั้งค่า wifi
   setupBlynk();   // ตั้งค่า Blynk lib
-  setupServerSD(hostSDServer);  // ตั้งค่า web server
+  setupServerSD(hostSDServer, onStartAPMode);  // ตั้งค่า web server
 
   // log
   createLogFile();
@@ -320,8 +342,9 @@ void loop() {
       delay(3000);
     } else {
       Serial.println(buttonCountDown);
-      tft.fillRect(5, 145, 165, 175, TFT_BLACK);  //horiz, vert
-      tft.setCursor(5, 160);
+      tft.fillRect(0, 140, 165, 175, TFT_BLACK);  //horiz, vert
+      tft.setCursor(0, 155);
+      tft.setTextColor(TFT_BLUE);
       if(buttonCountDown <= 30) {// ไม่แสดงค่านับถอนหลัง้ากดไปแค่ 1-2 วินาที
         tft.println("Set start plant <-- " + String(buttonCountDown));
       }
