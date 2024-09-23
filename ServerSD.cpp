@@ -90,7 +90,8 @@ void startWifiServer() {
     server.on("/", []() {
         String html = "<html lang='th'><head><meta charset='UTF-8'>";
         html += "<style>";
-        html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }";
+        html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; }";
+        html += ".container { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.2); text-align: center; width: 300px; }";
         html += "h1 { color: #5a5a5a; }";
         html += "h2 { color: #4CAF50; }";
         html += "ul { list-style-type: none; padding: 0; }";
@@ -98,6 +99,7 @@ void startWifiServer() {
         html += "a { text-decoration: none; color: #4CAF50; padding: 10px; border: 1px solid #4CAF50; border-radius: 5px; display: inline-block; transition: background-color 0.3s, color 0.3s; }";
         html += "a:hover { background-color: #4CAF50; color: white; }";
         html += "</style></head><body>";
+        html += "<div class='container'>";
         html += "<h1>Menu</h1>";
         html += "<p>Mode: " + String(WiFi.softAPIP().toString() == "0.0.0.0" ? "AP Mode" : "WiFi Connected") + "</p>";
         html += "<p>SSID: " + String(WiFi.SSID()) + "</p>";
@@ -107,6 +109,7 @@ void startWifiServer() {
         html += "<li><a href='/download'>Download CSV Log</a></li>";
         html += "<li><a href='/veggieSelection'>Select Veggie Type</a></li>";
         html += "</ul>";
+        html += "</div>";
         html += "</body></html>";
         server.send(200, "text/html", html);
     });
@@ -141,29 +144,21 @@ void startWifiServer() {
         server.send(200, "text/html", html);
     });
 
-    server.on("/", []() {
+    server.on("/setup", []() {
         String html = "<html lang='th'><head><meta charset='UTF-8'>";
         html += "<style>";
-        html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; display: flex; justify-content: center; align-items: center; height: 100vh; }";
-        html += ".container { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 15px rgba(0, 0, 0, 0.2); text-align: center; width: 300px; }";
+        html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }";
         html += "h1 { color: #5a5a5a; }";
-        html += "h2 { color: #4CAF50; }";
-        html += "ul { list-style-type: none; padding: 0; }";
-        html += "li { margin: 10px 0; }";
-        html += "a { text-decoration: none; color: #4CAF50; padding: 10px; border: 1px solid #4CAF50; border-radius: 5px; display: inline-block; transition: background-color 0.3s, color 0.3s; }";
-        html += "a:hover { background-color: #4CAF50; color: white; }";
+        html += "form { background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }";
+        html += "input[type='text'], input[type='password'] { padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; }";
+        html += "input[type='submit'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
+        html += "input[type='submit']:hover { background-color: #45a049; }";
         html += "</style></head><body>";
-        html += "<div class='container'>";
-        html += "<h1>Menu</h1>";
-        html += "<p>Mode: " + String(WiFi.softAPIP().toString() == "0.0.0.0" ? "AP Mode" : "WiFi Connected") + "</p>";
-        html += "<p>SSID: " + String(WiFi.SSID()) + "</p>";
-        html += "<h2>Select an Option</h2>";
-        html += "<ul>";
-        html += "<li><a href='/setup'>Setup WiFi</a></li>";
-        html += "<li><a href='/download'>Download CSV Log</a></li>";
-        html += "<li><a href='/veggieSelection'>Select Veggie Type</a></li>";
-        html += "</ul>";
-        html += "</div>";
+        html += "<h1>WiFi Configuration</h1>";
+        html += "<form action='/save' method='POST'>";
+        html += "SSID: <input type='text' name='ssid'><br>";
+        html += "Password: <input type='password' name='password'><br>";
+        html += "<input type='submit' value='Save'></form>";
         html += "</body></html>";
         server.send(200, "text/html", html);
     });
@@ -206,6 +201,7 @@ void startWifiServer() {
                 Serial.println(WiFi.localIP());
                 server.send(200, "text/html", "<h1>Configuration saved and connected!</h1>");
             }
+            delay(500);
             Serial.println("Restarting ESP32...");
             ESP.restart();
         } else {
@@ -228,8 +224,8 @@ void startWifiServer() {
       html += "<p>Type: " + String(veggieType) + "</p>";
       html += "<p><a href='/'>Back to Menu</a></p>"; // ลิงก์กลับไปยังหน้าเมนู
       html += "</body></html>";
-
       server.send(200, "text/html", html);
+      delay(500);
       Serial.println("Restarting ESP32...");
       ESP.restart();
     });
