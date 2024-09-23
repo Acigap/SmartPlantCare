@@ -287,6 +287,12 @@ void setup() {
   plantingTime = startStr.toInt(); 
   Serial.println("startStr: " + startStr);
   Serial.println(plantingTime);
+
+  preferences.begin("VeggieType", false);
+  int32_t veggieTypeInt = preferences.getInt("selectedVeggie", 5);
+  // ดึงค่าจาก Preferences
+  veggie = static_cast<VeggieType>(veggieTypeInt); // แปลงไปเป็น VeggieType
+  preferences.end();
 }
 
 void loop() {
