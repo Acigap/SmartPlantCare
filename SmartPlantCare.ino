@@ -27,7 +27,7 @@ bool waterPumpState = 0;
 bool checkSoilStat = 0;
 
 int dryValue = 4095;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
-int wetValue = 0;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
+int wetValue = 2400;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
 int displayCountDown = 30; // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
 int buttonCountDown = 0; // hold button count
 String lastWatering = ""; // เวลารดน้ำล่าสุด  
@@ -65,6 +65,9 @@ int readSoilMoisture() {
 
   // หาค่าเฉลี่ย
   int average = total / readings;
+  // Serial.println("soilMoistureA0: ");
+  // Serial.print(average);
+  virtualWriteV4(average);
   int soilMoisturePercent = map(average, wetValue, dryValue, 100, 0);
   // ตรวจสอบว่าค่าความชื้นอยู่ในช่วงที่ถูกต้อง
   if (soilMoisturePercent >= 100) {
@@ -293,6 +296,12 @@ void setup() {
   // ดึงค่าจาก Preferences
   veggie = static_cast<VeggieType>(veggieTypeInt); // แปลงไปเป็น VeggieType
   preferences.end();
+  Serial.println("VeggieType: " + String(veggieTypeInt));
+
+  preferences.begin("WetValue", false);
+  wetValue = preferences.getInt("selectedWet", wetValue);  // ค่าเริ่มต้นคือ wetValue 
+  preferences.end();
+  Serial.println("WetValue: " + String(wetValue));
 }
 
 void loop() {

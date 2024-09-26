@@ -173,6 +173,10 @@ void virtualWriteV2(int value) {
   Blynk.virtualWrite(V2,value);
 }
 
+void virtualWriteV4(int value) {
+  Blynk.virtualWrite(V4,value);
+}
+
 void setupBlynk()
 {
   Serial.println("setupBlynk");
