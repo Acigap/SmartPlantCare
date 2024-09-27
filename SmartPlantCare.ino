@@ -27,6 +27,12 @@ int switchPumState = 0;
 bool waterPumpState = 0;
 bool checkSoilStat = 0;
 
+// ค่าใหม่สำหรับการควบคุมปั้มน้ำ
+unsigned long pumpStartTime = 0; // เวลาที่เริ่มเปิดปั้มน้ำ
+unsigned long pumpRunTime = 2 * 60 * 60 * 1000; // 2 ชั่วโมง
+unsigned long pumpRestTime = 15 * 60 * 1000; // 15 นาที
+bool isPumpCoolingDown = false; // ตัวแปรบันทึกสถานะการพักปั้มน้ำ
+
 int dryValue = 4095;        // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
 int wetValue = 2400;        // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ)
 int displayCountDown = 30;  // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
@@ -102,6 +108,8 @@ void controlWaterPump(bool state, int moisture, bool isManual) {
     lastWatering = getCurrentDateTime();
     digitalWrite(RELAY_PIN, LOW);  // เปิดปั้มน้ำ
     logSDd(action, "Start");
+    pumpStartTime = millis(); // บันทึกเวลาที่เริ่มเปิดปั้มน้ำ
+    isPumpCoolingDown = false; // รีเซ็ตสถานะการพัก
   } else {
     digitalWrite(RELAY_PIN, HIGH);  // ปิดปั้มน้ำ
     logSDd(action, "Stop");
@@ -243,6 +251,25 @@ void createLogFile() {
   }
 }
 
+void checkPumpCoolingDown() {
+  unsigned long currentMillis = millis();
+  if (isPumpCoolingDown) {
+    if (currentMillis - pumpStartTime >= pumpRestTime) {
+      isPumpCoolingDown = false; // หมดเวลา พักปั้มน้ำ
+      if (waterPumpState) {
+        digitalWrite(RELAY_PIN, LOW); // เปิดปั้มน้ำใหม่
+        pumpStartTime = millis(); // บันทึกเวลาที่เริ่มเปิดปั้มน้ำ
+      }
+    }
+  } else if (waterPumpState) {
+    if (currentMillis - pumpStartTime >= pumpRunTime) {
+      digitalWrite(RELAY_PIN, HIGH);// ปิดปั้มน้ำเมื่อถึงเวลา
+      pumpStartTime = currentMillis; // เริ่มพัก
+      isPumpCoolingDown = true; // กำลังพัก
+    }
+  }
+}
+
 void setUpOTA() {
   // เริ่มต้นการทำงาน OTA
   ArduinoOTA.onStart([]() {
@@ -276,6 +303,7 @@ void setUpOTA() {
     }
   });
 
+  ArduinoOTA.setHostname(hostSDServer);
   ArduinoOTA.begin();
 }
 
@@ -332,6 +360,8 @@ void setup() {
 
   preferences.begin("WetValue", false);
   wetValue = preferences.getInt("selectedWet", wetValue);  // ค่าเริ่มต้นคือ wetValue
+  pumpRunTime = preferences.getLong("pumpRunTime", pumpRunTime);  // ค่าเริ่มต้นคือ 0
+  pumpRestTime = preferences.getLong("coolingDownTime", pumpRunTime);  // ค่าเริ่มต้นคือ 0
   preferences.end();
   Serial.println("WetValue: " + String(wetValue));
   setUpOTA();
@@ -361,6 +391,8 @@ void loop() {
     controlWaterPump(switchPumData, soilMoisture, true);
     switchPumState = switchPumData;
   }
+
+  checkPumpCoolingDown();
 
   buttonState = digitalRead(BUTTOPN_PIN);
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
@@ -412,5 +444,4 @@ void loop() {
 
   loopBlynk();
   loopServerSD();
-  delay(100);  // Optional delay for stability
 }

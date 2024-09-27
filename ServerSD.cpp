@@ -34,12 +34,12 @@ void setupServerSD(const char *host, void (*callback)(String, String, String)) {
     // ถ้าเชื่อมต่อไม่สำเร็จ
     Serial.println("\nFailed to connect, starting AP mode...");
     startAPMode();
-    startHostName(host);
     // รอให้ผู้ใช้ตั้งค่า WiFi ใหม่
     while (WiFi.status() != WL_CONNECTED) {
       server.handleClient();  // รอให้ผู้ใช้กรอก SSID และ Password ใหม่
       delay(100);
     }
+    startHostName(host);
   }
 }
 
@@ -172,6 +172,8 @@ void startWifiServer() {
     // อ่านค่า wetValue จาก Preferences
     preferences.begin("WetValue", false);
     int wetValue = preferences.getInt("selectedWet", 0);  // ค่าเริ่มต้นคือ 0
+    unsigned long pumpRunTime = preferences.getLong("pumpRunTime", 0);  // ค่าเริ่มต้นคือ 0
+    unsigned long coolingDownTime = preferences.getLong("coolingDownTime", 0);  // ค่าเริ่มต้นคือ 0
     preferences.end();
 
     Serial.println("WetValuePrefs: ");
@@ -189,6 +191,8 @@ void startWifiServer() {
     html += "<h1>Set Wet Value</h1>";
     html += "<form action='/saveWetValue' method='POST'>";
     html += "Wet Value: <input type='number' name='wetValue' value='" + String(wetValue) + "'><br>";  // ตั้งค่า default
+    html += "Max Pump RunTime: <input type='number' name='pumpRunTime' value='" + String(pumpRunTime) + "'><br>";  // ตั้งค่า default
+    html += "Pump CoolingDown Time: <input type='number' name='coolingDownTime' value='" + String(coolingDownTime) + "'><br>";  // ตั้งค่า default
     html += "<input type='submit' value='Save'></form>";
     html += "</body></html>";
     server.send(200, "text/html", html);
@@ -196,17 +200,25 @@ void startWifiServer() {
 
   server.on("/saveWetValue", []() {
     int newWetValue = server.arg("wetValue").toInt();  // รับค่าใหม่จากฟอร์ม
+    unsigned long newPumpRunTime = server.arg("pumpRunTime").toInt();  // รับค่าใหม่จากฟอร์ม
+    unsigned long newCoolingDownTime = server.arg("coolingDownTime").toInt();  // รับค่าใหม่จากฟอร์ม
     Serial.print("New Wet Value: ");
     Serial.println(newWetValue);
 
     // บันทึกค่าใหม่ลงใน Preferences
     preferences.begin("WetValue", false);
     preferences.putInt("selectedWet", newWetValue);
+    preferences.putLong("pumpRunTime", newPumpRunTime);
+    preferences.putLong("coolingDownTime", newCoolingDownTime);
     preferences.end();
 
     String html = "<html><body>";
     html += "<h1>Wet Value saved!</h1>";
     html += "<p>Value: " + String(newWetValue) + "</p>";
+    html += "<h1>Max Pump RunTime saved!</h1>";
+    html += "<p>Value: " + String(newPumpRunTime) + "</p>";
+    html += "<h1>Pump CoolingDown Time saved!</h1>";
+    html += "<p>Value: " + String(newCoolingDownTime) + "</p>";
     html += "<p><a href='/'>Back to Menu</a></p>";  // ลิงก์กลับไปยังหน้าเมนู
     html += "</body></html>";
     server.send(200, "text/html", html);
