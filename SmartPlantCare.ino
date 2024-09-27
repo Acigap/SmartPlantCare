@@ -1,42 +1,43 @@
-//This sketch is an SmartPlantCare 
+//This sketch is an SmartPlantCare
 #define CUSTOM_TIMEZONE "CST-8" China time zone
-#include <TFT_eSPI.h>    // สำหรับหน้าจอ T-display-s3
+#include <TFT_eSPI.h>  // สำหรับหน้าจอ T-display-s3
 #include "hothead.h"
 #include <HTTPClient.h>
 #include <WiFi.h>
-#include "Free_Fonts.h"  //free fonts must be included in the folder and quotes
+#include "Free_Fonts.h"     //free fonts must be included in the folder and quotes
 #include "ControlSDCard.h"  // สำหรับจัดการเรื่อง SD Card และไฟล์
 #include "BlynkData.h"
 #include "ServerSD.h"
 #include "smart_irrigation.h"
+#include <ArduinoOTA.h>
 
-const char* hostSDServer = "esp32sd";
+const char *hostSDServer = "esp32sd";
 const char *ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 25200;  // GMT +7
 const int daylightOffset_sec = 0;
 const char *startPlanTimeFilename = "/startPlanTime.txt";
 
-#define RELAY_PIN 1           // พินของ relay
+#define RELAY_PIN 1          // พินของ relay
 #define SOIL_MOISTURE_PIN 2  // ขาอนาล็อกที่ใช้ในการวัดความชื้นในดิน
-#define BUTTOPN_PIN 14           // พินของ ปุ่มล่าง ของจอด้านหน้า
+#define BUTTOPN_PIN 14       // พินของ ปุ่มล่าง ของจอด้านหน้า
 
 // เก็บ State กันการ set ค่าซ้ำ
-bool buttonState = 0;  
+bool buttonState = 0;
 int switchPumState = 0;
 bool waterPumpState = 0;
 bool checkSoilStat = 0;
 
-int dryValue = 4095;  // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
-int wetValue = 2400;     // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ) 
-int displayCountDown = 30; // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
-int buttonCountDown = 0; // hold button count
-String lastWatering = ""; // เวลารดน้ำล่าสุด  
+int dryValue = 4095;        // ค่าอนาล็อกเมื่อดินแห้ง (เซนเซอร์ไม่อยู่ในน้ำ)
+int wetValue = 2400;        // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ)
+int displayCountDown = 30;  // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
+int buttonCountDown = 0;    // hold button count
+String lastWatering = "";   // เวลารดน้ำล่าสุด
 
 VeggieType veggie = KALE;  // เลือกชนิดของผัก (คะน้า)
 
-static unsigned long lastLogTime = 0;  // loop check log time
-static unsigned long lastDisplayTime = 0; // loop check display time
-time_t plantingTime = 1680000000;  // เวลาในรูปแบบ epoch เมื่อเริ่มปลูก
+static unsigned long lastLogTime = 0;      // loop check log time
+static unsigned long lastDisplayTime = 0;  // loop check display time
+time_t plantingTime = 1680000000;          // เวลาในรูปแบบ epoch เมื่อเริ่มปลูก
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprite = TFT_eSprite(&tft);
@@ -55,12 +56,12 @@ int calculateDaysPlanted() {
 
 int readSoilMoisture() {
   int total = 0;
-  int readings = 5; // จำนวนครั้งที่ต้องการอ่านค่า
+  int readings = 5;  // จำนวนครั้งที่ต้องการอ่านค่า
 
   // อ่านค่าจาก SOIL_MOISTURE_PIN จำนวน 3 ครั้งแล้วรวมค่า
   for (int i = 0; i < readings; i++) {
     total += analogRead(SOIL_MOISTURE_PIN);  // อ่านค่า SOIL_MOISTURE_PIN
-    delay(30);                // หน่วงเวลาเล็กน้อย (30 ms) ระหว่างการอ่านแต่ละครั้ง
+    delay(30);                               // หน่วงเวลาเล็กน้อย (30 ms) ระหว่างการอ่านแต่ละครั้ง
   }
 
   // หาค่าเฉลี่ย
@@ -79,12 +80,12 @@ int readSoilMoisture() {
 }
 
 void logSDd(const char *action, const char *value) {
-  String data = getCurrentDateTime() +  String(",") + String(action) +  String(",") + String(value) +  String("\n");
+  String data = getCurrentDateTime() + String(",") + String(action) + String(",") + String(value) + String("\n");
   appendFile(csvFilename, data.c_str());
 }
 
 void controlWaterPump(bool state, int moisture, bool isManual) {
-  if(waterPumpState == state) {
+  if (waterPumpState == state) {
     return;
   }
   logsSoilMoisture(moisture);
@@ -105,7 +106,7 @@ void controlWaterPump(bool state, int moisture, bool isManual) {
     digitalWrite(RELAY_PIN, HIGH);  // ปิดปั้มน้ำ
     logSDd(action, "Stop");
   }
-  
+
   Serial.println(String(action) + "" + String(state));
 }
 
@@ -146,13 +147,8 @@ String getCurrentDateTime() {
   // ดึงเวลาปัจจุบันในรูปแบบ epoch time
   time_t now = time(NULL);
 
-  // struct tm timeinfo;
-  // if(!getLocalTime(&timeinfo)){
-  //   Serial.println("Failed to obtain time");
-  // }
-
   // แปลงเป็นโครงสร้างเวลามนุษย์ (local time)
-  struct tm* timeinfo = localtime(&now);
+  struct tm *timeinfo = localtime(&now);
 
   // ดึงข้อมูลปี เดือน วัน ชั่วโมง และนาที
   int year = timeinfo->tm_year + 1900;  // ปี (tm_year นับจาก 1900)
@@ -196,9 +192,9 @@ void initWiFi() {
 
   // ลูปพยายามเชื่อมต่อ WiFi
   while (WiFi.status() != WL_CONNECTED && attempt < max_attempts) {
-      delay(500);
-      Serial.print(".");
-      attempt++;
+    delay(500);
+    Serial.print(".");
+    attempt++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
@@ -229,26 +225,62 @@ void onStartAPMode(String ip, String ap, String pwd) {
   tft.setCursor(30, 50);
   tft.println("Start AP Mode");
   tft.println("AP: " + ap);
-  tft.println("PWD: " + pwd); 
-  tft.println("Server IP: " + ip); 
+  tft.println("PWD: " + pwd);
+  tft.println("Server IP: " + ip);
 }
 
 void logsSoilMoisture(int soilMoisture) {
   char buf[4];
   itoa(soilMoisture, buf, 10);
-  logSDd("SoilMoisture",buf);
+  logSDd("SoilMoisture", buf);
 }
 
 void createLogFile() {
   String str = readFileToString(csvFilename);
   if (str.isEmpty()) {
     Serial.println("writeFile: " + String(csvFilename));
-    writeFile(csvFilename,"time, action, value\n");
+    writeFile(csvFilename, "time, action, value\n");
   }
 }
 
+void setUpOTA() {
+  // เริ่มต้นการทำงาน OTA
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else {  // U_SPIFFS
+      type = "filesystem";
+    }
+    // NOTE: หากใช้ SPIFFS ให้ปิด SPIFFS ก่อนที่จะเริ่มการอัปเดต
+    Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+
+  ArduinoOTA.begin();
+}
+
 void setup() {
-  pinMode(RELAY_PIN, OUTPUT);    // ตั้งพินสำหรับ relay เป็น output
+  pinMode(RELAY_PIN, OUTPUT);  // ตั้งพินสำหรับ relay เป็น output
   pinMode(BUTTOPN_PIN, INPUT);
   digitalWrite(RELAY_PIN, HIGH);  // ปิด relay ตอนเริ่มต้น
   pinMode(PIN_POWER_ON, OUTPUT);  //enables the LCD and to run on battery
@@ -277,53 +309,55 @@ void setup() {
   tft.setCursor(5, 25);
   tft.println("SmartPlantCare");
 
-  initWiFi();    // ตั้งค่า wifi
-  setupBlynk();   // ตั้งค่า Blynk lib
+  initWiFi();                                  // ตั้งค่า wifi
+  setupBlynk();                                // ตั้งค่า Blynk lib
   setupServerSD(hostSDServer, onStartAPMode);  // ตั้งค่า web server
 
   // log
   createLogFile();
   logSDd("Esp32Start", "initOK");
   //readFile(csvFilename);
- // readFile(startPlanTimeFilename);
+  // readFile(startPlanTimeFilename);
   String startStr = readFileToString(startPlanTimeFilename);
-  plantingTime = startStr.toInt(); 
+  plantingTime = startStr.toInt();
   Serial.println("startStr: " + startStr);
   Serial.println(plantingTime);
 
   preferences.begin("VeggieType", false);
   int32_t veggieTypeInt = preferences.getInt("selectedVeggie", 5);
   // ดึงค่าจาก Preferences
-  veggie = static_cast<VeggieType>(veggieTypeInt); // แปลงไปเป็น VeggieType
+  veggie = static_cast<VeggieType>(veggieTypeInt);  // แปลงไปเป็น VeggieType
   preferences.end();
   Serial.println("VeggieType: " + String(veggieTypeInt));
 
   preferences.begin("WetValue", false);
-  wetValue = preferences.getInt("selectedWet", wetValue);  // ค่าเริ่มต้นคือ wetValue 
+  wetValue = preferences.getInt("selectedWet", wetValue);  // ค่าเริ่มต้นคือ wetValue
   preferences.end();
   Serial.println("WetValue: " + String(wetValue));
+  setUpOTA();
 }
 
 void loop() {
+  ArduinoOTA.handle();                    // ตรวจสอบการเชื่อมต่อ OTA
   int soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
-  checkSoilMoisture(soilMoisture);  // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
-  
+  checkSoilMoisture(soilMoisture);        // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
+
   if (millis() - lastDisplayTime >= 1000) {  // 1000 ms = 1 วินาที
     // แสดงข้อมูลบนหน้าจอ
-    int daysPlanted = calculateDaysPlanted();         // คำนวณจำนวนวันที่ปลูกมาแล้ว
+    int daysPlanted = calculateDaysPlanted();              // คำนวณจำนวนวันที่ปลูกมาแล้ว
     displayInfo(soilMoisture, daysPlanted, lastWatering);  // อัปเดตข้อมูลบนหน้าจอ
-    lastDisplayTime = millis();                 // อัปเดตเวลาล่าสุดที่แสดงจอ
+    lastDisplayTime = millis();                            // อัปเดตเวลาล่าสุดที่แสดงจอ
     displayCountDown--;
-    if(displayCountDown <0) {displayCountDown = 0;}
+    if (displayCountDown < 0) { displayCountDown = 0; }
   }
   if (millis() - lastLogTime >= 60000) {  // 1000 = 1sec. * 60  = 60000sec. (1 นาที)
     logsSoilMoisture(soilMoisture);
-    lastLogTime = millis();                 // อัปเดตเวลาล่าสุดที่บันทึกข้อมูล
+    lastLogTime = millis();  // อัปเดตเวลาล่าสุดที่บันทึกข้อมูล
   }
 
   // Check switchPum from Blynk server
   int switchPumData = getSwitchPum();
-  if(switchPumState != switchPumData) {
+  if (switchPumState != switchPumData) {
     controlWaterPump(switchPumData, soilMoisture, true);
     switchPumState = switchPumData;
   }
@@ -333,15 +367,15 @@ void loop() {
   if (buttonState == LOW) {
     displayCountDown = 30;
     buttonCountDown--;
-    if(buttonCountDown < 0) {
+    if (buttonCountDown < 0) {
       plantingTime = time(NULL);
       char temp[10];
-      ltoa(plantingTime,temp,10);
+      ltoa(plantingTime, temp, 10);
       writeFile(startPlanTimeFilename, temp);
       buttonCountDown = 33;
       Serial.println(plantingTime);
       Serial.println(temp);
-      
+
       // เคลียร์ log file โดยการเปลียนชื่อเป็น timestamp แล้วสร้างใหม่
       String filename = "/" + String(temp) + ".csv";
       renameFile(csvFilename, filename.c_str());
@@ -360,7 +394,7 @@ void loop() {
       tft.fillRect(0, 140, 165, 175, TFT_BLACK);  //horiz, vert
       tft.setCursor(0, 155);
       tft.setTextColor(TFT_BLUE);
-      if(buttonCountDown <= 30) {// ไม่แสดงค่านับถอนหลัง้ากดไปแค่ 1-2 วินาที
+      if (buttonCountDown <= 30) {  // ไม่แสดงค่านับถอนหลัง้ากดไปแค่ 1-2 วินาที
         tft.println("Set start plant <-- " + String(buttonCountDown));
       }
     }
@@ -368,14 +402,15 @@ void loop() {
     buttonCountDown = 33;
   }
 
-  if(displayCountDown <= 0) {
-     // turn LED off:
+  if (displayCountDown <= 0) {
+    // turn LED off:
     digitalWrite(PIN_LCD_BL, LOW);
   } else {
-     // turn LED on:
+    // turn LED on:
     digitalWrite(PIN_LCD_BL, HIGH);
   }
 
   loopBlynk();
   loopServerSD();
+  delay(100);  // Optional delay for stability
 }
