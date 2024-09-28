@@ -69,6 +69,7 @@ int readSoilMoisture() {
     total += analogRead(SOIL_MOISTURE_PIN);  // อ่านค่า SOIL_MOISTURE_PIN
     delay(30);                               // หน่วงเวลาเล็กน้อย (30 ms) ระหว่างการอ่านแต่ละครั้ง
   }
+  
 
   // หาค่าเฉลี่ย
   int average = total / readings;
@@ -310,6 +311,7 @@ void setUpOTA() {
 void setup() {
   pinMode(RELAY_PIN, OUTPUT);  // ตั้งพินสำหรับ relay เป็น output
   pinMode(BUTTOPN_PIN, INPUT);
+  pinMode(SOIL_MOISTURE_PIN, INPUT_PULLUP); // ตั้งค่าขา A1 ให้มี Pull-up resistor 
   digitalWrite(RELAY_PIN, HIGH);  // ปิด relay ตอนเริ่มต้น
   pinMode(PIN_POWER_ON, OUTPUT);  //enables the LCD and to run on battery
   pinMode(PIN_LCD_BL, OUTPUT);    //triggers the LCD backlight
