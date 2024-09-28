@@ -108,6 +108,7 @@ void startWifiServer() {
     html += "<li><a href='/download'>Download CSV Log</a></li>";
     html += "<li><a href='/veggieSelection'>Select Veggie Type</a></li>";
     html += "<li><a href='/configParameter'>Config parameter</a></li>";  // เพิ่มหน้าใหม่สำหรับการตั้งค่า wetValue
+    html += "<li><a href='/configBlynk'>Config Blynk Type</a></li>";
     html += "</ul>";
     html += "</div></body></html>";
     server.send(200, "text/html", html);
@@ -169,7 +170,34 @@ void startWifiServer() {
     server.send(200, "text/html", html);
   });
 
-  server.on("/configParameter", []() {
+  server.on("/configBlynk", []() {
+    // อ่านค่า BlynkConfig จาก Preferences
+    preferences.begin("BlynkConfig", false);
+    String blynkTemplateID = preferences.getString("templateID", "");                    
+    String blynkTemplateName = preferences.getString("templateName", "");       
+    String blynkAuthToken = preferences.getString("authToken", "");  
+    preferences.end();
+
+    String html = "<html lang='th'><head><meta charset='UTF-8'>";
+    html += "<style>";
+    html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }";
+    html += "h1 { color: #5a5a5a; }";
+    html += "form { background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }";
+    html += "input[type='text'] { padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; }";
+    html += "input[type='submit'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
+    html += "input[type='submit']:hover { background-color: #45a049; }";
+    html += "</style></head><body>";
+    html += "<h1>Config Blynk</h1>";
+    html += "<form action='/saveConfigBlynk' method='POST'>";
+    html += "BLYNK_TEMPLATE_ID: <input type='text' name='blynkTemplateID' value='" + blynkTemplateID + "'><br>";                // ตั้งค่า default
+    html += "<br>BLYNK_TEMPLATE_NAME: <input type='text' name='blynkTemplateName' value='" + blynkTemplateName + "'><br>";      // ตั้งค่า default
+    html += "<br>BLYNK_AUTH_TOKEN: <input type='text' name='blynkAuthToken' value='" + blynkAuthToken + "'><br>";               // ตั้งค่า default
+    html += "<br><input type='submit' value='Save'></form>";
+    html += "</body></html>";
+    server.send(200, "text/html", html);
+  });
+
+   server.on("/configParameter", []() {
     // อ่านค่า wetValue จาก Preferences
     preferences.begin("WetValue", false);
     int wetValue = preferences.getInt("selectedWet", 0);                        // ค่าเริ่มต้นคือ 0
@@ -193,6 +221,31 @@ void startWifiServer() {
     html += "<br><input type='submit' value='Save'></form>";
     html += "</body></html>";
     server.send(200, "text/html", html);
+  });
+
+  server.on("/saveConfigBlynk", []() {
+    String newBlynkTemplateID = server.arg("blynkTemplateID");      // รับค่าใหม่จากฟอร์ม
+    String newBlynkTemplateName = server.arg("blynkTemplateName");  // รับค่าใหม่จากฟอร์ม
+    String newBlynkAuthToken = server.arg("blynkAuthToken");        // รับค่าใหม่จากฟอร์ม
+    // บันทึกค่าใหม่ลงใน Preferences
+    preferences.begin("BlynkConfig", false);
+    preferences.putString("templateID", newBlynkTemplateID);
+    preferences.putString("templateName", newBlynkTemplateName);
+    preferences.putString("authToken", newBlynkAuthToken);
+    preferences.end();
+    String html = "<html><body>";
+    html += "<h1>BLYNK_TEMPLATE_ID saved!</h1>";
+    html += "<p>Value: " + newBlynkTemplateID + "</p>";
+    html += "<h1>BLYNK_TEMPLATE_NAME saved!</h1>";
+    html += "<p>Value: " + newBlynkTemplateName + "</p>";
+    html += "<h1>BLYNK_AUTH_TOKEN saved!</h1>";
+    html += "<p>Value: " + newBlynkAuthToken + "</p>";
+    html += "<p><a href='/'>Back to Menu</a></p>";  // ลิงก์กลับไปยังหน้าเมนู
+    html += "</body></html>";
+    server.send(200, "text/html", html);
+    delay(500);
+    Serial.println("Restarting ESP32...");
+    ESP.restart();  // รีสตาร์ทหลังจากบันทึกค่า
   });
 
   server.on("/saveConfigParameter", []() {

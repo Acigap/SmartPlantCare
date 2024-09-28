@@ -4,146 +4,20 @@
   Be sure to check out other examples!
  *************************************************************/
 
-/* Fill-in information from Blynk Device Info here */
+ /* Fill-in information from Blynk Device Info here */
 #define BLYNK_TEMPLATE_ID           "TMPL6Iq1HOFra"
 #define BLYNK_TEMPLATE_NAME         "Quickstart Template"
 #define BLYNK_AUTH_TOKEN            "vU9_myPzoMrSpRNUiiWZhlFZxo7qD5DG"
-
-const char* host = "blynk.cloud";
-int port = 80;
-static int switchPum = 0;
 
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include "BlynkData.h"
 #include <BlynkSimpleEsp32.h>
+#include <Preferences.h>  // เพิ่มการเรียกใช้ Preferences library
 
-// WiFiClient client;
-
-// bool httpRequest(const String& method,
-//                  const String& url,
-//                  const String& request,
-//                  String&       response)
-// {
-//   Serial.print(F("Connecting to "));
-//   Serial.print(host);
-//   Serial.print(":");
-//   Serial.print(port);
-//   Serial.print("... ");
-//   if (client.connect(host, port)) {
-//     Serial.println("OK");
-//   } else {
-//     Serial.println("failed");
-//     return false;
-//   }
-
-//   Serial.print(method); Serial.print(" "); Serial.println(url);
-
-//   client.print(method); client.print(" ");
-//   client.print(url); client.println(F(" HTTP/1.1"));
-//   client.print(F("Host: ")); client.println(host);
-//   client.println(F("Connection: close"));
-//   if (request.length()) {
-//     client.println(F("Content-Type: application/json"));
-//     client.print(F("Content-Length: ")); client.println(request.length());
-//     client.println();
-//     client.print(request);
-//   } else {
-//     client.println();
-//   }
-
-//   //Serial.println("Waiting response");
-//   int timeout = millis() + 5000;
-//   while (client.available() == 0) {
-//     if (timeout - millis() < 0) {
-//       Serial.println(">>> Client Timeout !");
-//       client.stop();
-//       return false;
-//     }
-//   }
-
-//   //Serial.println("Reading response");
-//   int contentLength = -1;
-//   while (client.available()) {
-//     String line = client.readStringUntil('\n');
-//     line.trim();
-//     line.toLowerCase();
-//     if (line.startsWith("content-length:")) {
-//       contentLength = line.substring(line.lastIndexOf(':') + 1).toInt();
-//     } else if (line.length() == 0) {
-//       break;
-//     }
-//   }
-
-//   //Serial.println("Reading response body");
-//   response = "";
-//   response.reserve(contentLength + 1);
-//   while (response.length() < contentLength) {
-//     if (client.available()) {
-//       char c = client.read();
-//       response += c;
-//     } else if (!client.connected()) {
-//       break;
-//     }
-//   }
-//   client.stop();
-//   Serial.print(response);
-//   return true;
-// }
-
-
-// void isHardwareConnected() {
-//   Serial.print("isHardwareConnected");
-//   String response;
-//   if (httpRequest("GET", String("/external/api/isHardwareConnected?token=") + BLYNK_AUTH_TOKEN, "", response)) {
-//     if (response.length() != 0) {
-//       Serial.print("WARNING: ");
-//       Serial.println(response);
-//     }
-//   }
-// }
-
-// void virtualWrite(long value) {
-//    // Send value to the cloud
-//   // similar to Blynk.virtualWrite()
-
-//   Serial.print("Sending value: ");
-//   Serial.println(value);
-//   String response;
-//   if (httpRequest("GET", String("/external/api/update?token=") + BLYNK_AUTH_TOKEN + String("&pin=V2&value=") + value, "", response)) {
-//     if (response.length() != 0) {
-//       Serial.print("WARNING: ");
-//       Serial.println(response);
-//     }
-//   }
-// }
-
-// String syncVirtual() {
-//     // Read the value back
-//   // similar to Blynk.syncVirtual()
-
-//   String response;
-//   Serial.println("Reading value");
-
-//   if (httpRequest("GET", String("/external/api/get?token=") + BLYNK_AUTH_TOKEN + String("&pin=V2"), "", response)) {
-//     Serial.print("Value from server: ");
-//     Serial.println(response);
-//   }
-//   return response;
-// }
-
-// void setProperty(const String& label,
-//                  const String& value) {
-//                     // Set Property
-//   Serial.println("Setting property");
-//   String response;
-//   if (httpRequest("GET", String("/external/api/update/property?token=") + BLYNK_AUTH_TOKEN + String("&pin=V3&") + label + "=" + value, "", response)) {
-//     if (response.length() != 0) {
-//       Serial.print("WARNING: ");
-//       Serial.println(response);
-//     }
-//   }
-// }
+const char* host = "blynk.cloud";
+int port = 80;
+static int switchPum = 0;
 
 BLYNK_CONNECTED() {
     Blynk.syncAll();
@@ -180,10 +54,19 @@ void virtualWriteV4(int value) {
 void setupBlynk()
 {
   Serial.println("setupBlynk");
+  // อ่านค่า BlynkConfig จาก Preferences
+  Preferences preferences;
+  preferences.begin("BlynkConfig", false);     
+  String blynkAuthToken = preferences.getString("authToken", String(BLYNK_AUTH_TOKEN));  
+  String blynkTemplateID = preferences.getString("templateID", String(BLYNK_TEMPLATE_ID));  
+  String blynkTemplateName = preferences.getString("templateName", String(BLYNK_TEMPLATE_NAME));  
+  preferences.end();
 
   if (WiFi.status() == WL_CONNECTED) {
-    Blynk.config(BLYNK_AUTH_TOKEN);  // in place of Blynk.begin(auth, ssid, pass);
-    Blynk.connect(3333);  
+    Blynk.config(blynkAuthToken.c_str());  
+    // เริ่มต้น Blynk
+    //Blynk.begin(blynkAuthToken.c_str(), blynkTemplateID.c_str(), blynkTemplateName.c_str());
+    Blynk.connect(3000);  // time out 10 sec.
     while (Blynk.connect() == false) {
       // Wait until connected
       Serial.println(".");
