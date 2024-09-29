@@ -359,12 +359,14 @@ void setup() {
   preferences.end();
   Serial.println("VeggieType: " + String(veggieTypeInt));
 
-  preferences.begin("WetValue", false);
+  preferences.begin("ConfigParameter", false);
   wetValue = preferences.getInt("selectedWet", wetValue);  // ค่าเริ่มต้นคือ wetValue
+  dryValue = preferences.getInt("selectedDry", dryValue);  // ค่าเริ่มต้นคือ dryValue
   pumpRunTime = preferences.getLong("pumpRunTime", pumpRunTime);  // ค่าเริ่มต้นคือ 0
   pumpRestTime = preferences.getLong("coolingDownTime", pumpRunTime);  // ค่าเริ่มต้นคือ 0
   preferences.end();
   Serial.println("WetValue: " + String(wetValue));
+  Serial.println("DryValue: " + String(dryValue));
   setUpOTA();
 }
 

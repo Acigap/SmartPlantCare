@@ -104,7 +104,7 @@ void startWifiServer() {
     html += "<p>SSID: " + String(WiFi.SSID()) == "" ? String(apName) : String(WiFi.SSID()) + "</p>";
     html += "<h2>Select an Option</h2>";
     html += "<ul>";
-    html += "<li><a href='/setup'>Setup WiFi</a></li>";
+    html += "<li><a href='/wifiSetup'>Setup WiFi</a></li>";
     html += "<li><a href='/download'>Download CSV Log</a></li>";
     html += "<li><a href='/veggieSelection'>Select Veggie Type</a></li>";
     html += "<li><a href='/configParameter'>Config parameter</a></li>";  // เพิ่มหน้าใหม่สำหรับการตั้งค่า wetValue
@@ -124,8 +124,8 @@ void startWifiServer() {
     html += "h1 { color: #5a5a5a; }";
     html += "form { background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }";
     html += "select { padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; }";
-    html += "input[type='submit'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
-    html += "input[type='submit']:hover { background-color: #45a049; }";
+    html += "input[type='submit'], input[type='button'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
+    html += "input[type='submit']:hover, input[type='button']:hover { background-color: #45a049; }";
     html += "</style></head><body>";
     html += "<h1>Select Veggie Type</h1>";
     html += "<form action='/setVeggie' method='POST'>";
@@ -145,28 +145,30 @@ void startWifiServer() {
     html += "<option value='10'" + String(veggieType == 10 ? " selected" : "") + ">พริก - ปลูก: 60-90 วัน, รดน้ำ: 35%, หยุดรดน้ำ: 55%</option>";
     html += "</select><br>";
 
-    html += "<br><input type='submit' value='Select'>";
+    html += "<br><input type='submit' value='Select' style='margin-right: 10px;'>";
+    html += "<input type='button' value='Cancel' onclick='window.history.back();'>";
     html += "</form></body></html>";
     server.send(200, "text/html", html);
   });
 
 
-  server.on("/setup", []() {
+  server.on("/wifiSetup", []() {
     String html = "<html lang='th'><head><meta charset='UTF-8'>";
     html += "<style>";
     html += "body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }";
     html += "h1 { color: #5a5a5a; }";
     html += "form { background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }";
     html += "input[type='text'], input[type='password'] { padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; }";
-    html += "input[type='submit'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
-    html += "input[type='submit']:hover { background-color: #45a049; }";
+    html += "input[type='submit'], input[type='button'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
+    html += "input[type='submit']:hover, input[type='button']:hover { background-color: #45a049; }";
     html += "</style></head><body>";
     html += "<h1>WiFi Configuration</h1>";
     html += "<form action='/save' method='POST'>";
     html += "SSID: <input type='text' name='ssid'><br>";
     html += "<br>Password: <input type='password' name='password'><br>";
-    html += "<br><input type='submit' value='Save'></form>";
-    html += "</body></html>";
+    html += "<br><input type='submit' value='Save' style='margin-right: 10px;'>";
+    html += "<input type='button' value='Cancel' onclick='window.history.back();'>";
+    html += "</form></body></html>";
     server.send(200, "text/html", html);
   });
 
@@ -184,23 +186,25 @@ void startWifiServer() {
     html += "h1 { color: #5a5a5a; }";
     html += "form { background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }";
     html += "input[type='text'] { padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; }";
-    html += "input[type='submit'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
-    html += "input[type='submit']:hover { background-color: #45a049; }";
+    html += "input[type='submit'], input[type='button'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
+    html += "input[type='submit']:hover, input[type='button']:hover { background-color: #45a049; }";
     html += "</style></head><body>";
     html += "<h1>Config Blynk</h1>";
     html += "<form action='/saveConfigBlynk' method='POST'>";
     html += "BLYNK_TEMPLATE_ID: <input type='text' name='blynkTemplateID' value='" + blynkTemplateID + "'><br>";                // ตั้งค่า default
     html += "<br>BLYNK_TEMPLATE_NAME: <input type='text' name='blynkTemplateName' value='" + blynkTemplateName + "'><br>";      // ตั้งค่า default
     html += "<br>BLYNK_AUTH_TOKEN: <input type='text' name='blynkAuthToken' value='" + blynkAuthToken + "'><br>";               // ตั้งค่า default
-    html += "<br><input type='submit' value='Save'></form>";
-    html += "</body></html>";
+    html += "<br><input type='submit' value='Save' style='margin-right: 10px;'>";
+    html += "<input type='button' value='Cancel' onclick='window.history.back();'>";
+    html += "</form></body></html>";
     server.send(200, "text/html", html);
   });
 
    server.on("/configParameter", []() {
     // อ่านค่า wetValue จาก Preferences
-    preferences.begin("WetValue", false);
+    preferences.begin("ConfigParameter", false);
     int wetValue = preferences.getInt("selectedWet", 0);                        // ค่าเริ่มต้นคือ 0
+    int dryValue = preferences.getInt("selectedDry", 0);                        // ค่าเริ่มต้นคือ 0
     unsigned long pumpRunTime = preferences.getLong("pumpRunTime", 0);          // ค่าเริ่มต้นคือ 0
     unsigned long coolingDownTime = preferences.getLong("coolingDownTime", 0);  // ค่าเริ่มต้นคือ 0
     preferences.end();
@@ -210,16 +214,18 @@ void startWifiServer() {
     html += "h1 { color: #5a5a5a; }";
     html += "form { background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }";
     html += "input[type='number'] { padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; }";
-    html += "input[type='submit'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
-    html += "input[type='submit']:hover { background-color: #45a049; }";
+    html += "input[type='submit'], input[type='button'] { background-color: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }";
+    html += "input[type='submit']:hover, input[type='button']:hover { background-color: #45a049; }";
     html += "</style></head><body>";
     html += "<h1>Config parameter</h1>";
     html += "<form action='/saveConfigParameter' method='POST'>";
-    html += "Wet Value (0-4059): <input type='number' name='wetValue' value='" + String(wetValue) + "'><br>";                              // ตั้งค่า default
+    html += "Max Wet Value (0-4059): <input type='number' name='wetValue' value='" + String(wetValue) + "'><br>";                          // ตั้งค่า default
+    html += "<br>Max Dry Value (0-4059): <input type='number' name='dryValue' value='" + String(dryValue) + "'><br>";                      // ตั้งค่า default
     html += "<br>Max Pump RunTime (Sec.): <input type='number' name='pumpRunTime' value='" + String(pumpRunTime) + "'><br>";               // ตั้งค่า default
     html += "<br>Pump CoolingDown Time (Sec.): <input type='number' name='coolingDownTime' value='" + String(coolingDownTime) + "'><br>";  // ตั้งค่า default
-    html += "<br><input type='submit' value='Save'></form>";
-    html += "</body></html>";
+    html += "<br><input type='submit' value='Save' style='margin-right: 10px;'>";
+    html += "<input type='button' value='Cancel' onclick='window.history.back();'>";
+    html += "</form></body></html>";
     server.send(200, "text/html", html);
   });
 
@@ -250,17 +256,21 @@ void startWifiServer() {
 
   server.on("/saveConfigParameter", []() {
     int newWetValue = server.arg("wetValue").toInt();                          // รับค่าใหม่จากฟอร์ม
+    int newDryValue = server.arg("dryValue").toInt();                          // รับค่าใหม่จากฟอร์ม
     unsigned long newPumpRunTime = server.arg("pumpRunTime").toInt();          // รับค่าใหม่จากฟอร์ม
     unsigned long newCoolingDownTime = server.arg("coolingDownTime").toInt();  // รับค่าใหม่จากฟอร์ม
     // บันทึกค่าใหม่ลงใน Preferences
-    preferences.begin("WetValue", false);
+    preferences.begin("ConfigParameter", false);
     preferences.putInt("selectedWet", newWetValue);
+    preferences.putInt("selectedDry", newDryValue);
     preferences.putLong("pumpRunTime", newPumpRunTime);
     preferences.putLong("coolingDownTime", newCoolingDownTime);
     preferences.end();
     String html = "<html><body>";
-    html += "<h1>Wet Value saved!</h1>";
+    html += "<h1>Max Wet Value saved!</h1>";
     html += "<p>Value: " + String(newWetValue) + "</p>";
+    html += "<h1>Max Dry Value saved!</h1>";
+    html += "<p>Value: " + String(newDryValue) + "</p>";
     html += "<h1>Max Pump RunTime saved!</h1>";
     html += "<p>Value: " + String(newPumpRunTime) + "</p>";
     html += "<h1>Pump CoolingDown Time saved!</h1>";
