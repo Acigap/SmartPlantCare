@@ -383,7 +383,7 @@ void loop() {
     displayCountDown--;
     if (displayCountDown < 0) { displayCountDown = 0; }
   }
-  if (millis() - lastLogTime >= 60000) {  // 1000 = 1sec. * 60  = 60000sec. (1 นาที)
+  if (millis() - lastLogTime >= 300000) {  // 1000 = 1sec. * 60 * 5  = 300,000 sec. (5 นาที)
     logsSoilMoisture(soilMoisture);
     lastLogTime = millis();  // อัปเดตเวลาล่าสุดที่บันทึกข้อมูล
   }

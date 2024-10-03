@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Data Graph</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            color: #5a5a5a;
+        }
+        #chartContainer {
+            position: relative;
+            width: 100%;
+            max-width: 1000px; /* ขนาดสูงสุดที่ต้องการ */
+            margin: 0 auto;
+        }
+        #myChart {
+            width: 100%;
+            height: 70vh; /* กำหนดให้สูงตามหน้าจอ */
+        }
+        #loading {
+            text-align: center;
+            font-size: 20px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 Data Graph</h1>
+    <div id="loading">Loading...</div>
+    <div id="chartContainer">
+        <canvas id="myChart" style="display:none;"></canvas>
+    </div>
+
+    <script>
+        // ฟังก์ชันอ่านข้อมูลจาก CSV
+        async function fetchData() {
+            const response = await fetch('/data');  // ดึงข้อมูลจาก ESP32
+            const data = await response.text();      // อ่านข้อมูลเป็น string
+            const rows = data.trim().split('\n');    // แยกแต่ละแถว
+
+            // ตัวแปรเก็บข้อมูลเพื่อแสดงกราฟ
+            const timeLabels = [];
+            const soilMoistureValues = [];
+            const controlPumpOpen = [];  // สถานะปั้มเปิดด้วยระบบ
+            const controlPumpClose = [];  // สถานะปั้มปิดด้วยระบบ
+            const manualPumpOpen = [];  // สถานะปั้มเปิดด้วยมือ
+            const manualPumpClose = [];  // สถานะปั้มปิดด้วยมือ
+            let lastSoilMoistureValue = null;  // ค่าความชื้นล่าสุด
+
+            // วนลูปเพื่อแยกข้อมูลจาก CSV
+            rows.forEach(row => {
+                const columns = row.split(','); // แยกแต่ละคอลัมน์
+
+                const timestamp = columns[0].trim(); // เวลา
+                const actionType = columns[1].trim(); // ประเภทของการกระทำ
+                const actionValue = columns[2].trim(); // ค่า หรือ สถานะ
+
+                timeLabels.push(timestamp); // เวลา
+
+                if (actionType === "SoilMoisture") {
+                    lastSoilMoistureValue = parseFloat(actionValue);  // บันทึกค่าความชื้นล่าสุด
+                    soilMoistureValues.push(lastSoilMoistureValue); // ความชื้นในดิน
+                } else {
+                    soilMoistureValues.push(lastSoilMoistureValue);  // ถ้าไม่ใช่ค่าความชื้น ให้ใช้ค่าล่าสุด
+
+                    // สถานะปั้ม
+                    if (actionType === "ControlPump") {
+                        if (actionValue === 'Start') {
+                            controlPumpOpen.push(lastSoilMoistureValue);
+                            controlPumpClose.push(null);
+                        } else {
+                            controlPumpOpen.push(null);
+                            controlPumpClose.push(lastSoilMoistureValue);
+                        }
+                    } else if (actionType === "ManualPump") {
+                        if (actionValue === 'Start') {
+                            manualPumpOpen.push(lastSoilMoistureValue);
+                            manualPumpClose.push(null);
+                        } else {
+                            manualPumpOpen.push(null);
+                            manualPumpClose.push(lastSoilMoistureValue);
+                        }
+                    } else {
+                        controlPumpOpen.push(null);
+                        controlPumpClose.push(null);
+                        manualPumpOpen.push(null);
+                        manualPumpClose.push(null);
+                    }
+                }
+            });
+
+            return {
+                timeLabels,
+                soilMoistureValues,
+                controlPumpOpen,
+                controlPumpClose,
+                manualPumpOpen,
+                manualPumpClose
+            };
+        }
+
+        // ฟังก์ชันสร้างกราฟ
+        async function createChart() {
+            const { timeLabels, soilMoistureValues, controlPumpOpen, controlPumpClose, manualPumpOpen, manualPumpClose } = await fetchData();
+
+            // ซ่อน loading message
+            document.getElementById('loading').style.display = 'none';
+            // แสดงกราฟ
+            document.getElementById('myChart').style.display = 'block';
+
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,  // ใช้ข้อมูลเวลาเป็นแกน X
+                    datasets: [
+                        {
+                            label: 'Soil Moisture (%)',
+                            data: soilMoistureValues,  // ข้อมูลความชื้นดิน
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: true,
+                            yAxisID: 'y1',
+                        },
+                        {
+                            label: 'Control Pump Open',
+                            data: controlPumpOpen,  // ปั้มเปิดด้วยระบบ
+                            borderColor: 'green',
+                            backgroundColor: 'green',
+                            fill: false,
+                            yAxisID: 'y2',
+                            type: 'scatter',  // ใช้ scatter สำหรับจุดสถานะปั้ม
+                            showLine: false,
+                            pointRadius: 6,
+                            pointStyle: 'circle'
+                        },
+                        {
+                            label: 'Control Pump Close',
+                            data: controlPumpClose,  // ปั้มปิดด้วยระบบ
+                            borderColor: 'red',
+                            backgroundColor: 'red',
+                            fill: false,
+                            yAxisID: 'y2',
+                            type: 'scatter',
+                            showLine: false,
+                            pointRadius: 6,
+                            pointStyle: 'circle'
+                        },
+                        {
+                            label: 'Manual Pump Open',
+                            data: manualPumpOpen,  // ปั้มเปิดด้วยมือ
+                            borderColor: 'blue',
+                            backgroundColor: 'blue',
+                            fill: false,
+                            yAxisID: 'y2',
+                            type: 'scatter',
+                            showLine: false,
+                            pointRadius: 6,
+                            pointStyle: 'triangle'
+                        },
+                        {
+                            label: 'Manual Pump Close',
+                            data: manualPumpClose,  // ปั้มปิดด้วยมือ
+                            borderColor: 'orange',
+                            backgroundColor: 'orange',
+                            fill: false,
+                            yAxisID: 'y2',
+                            type: 'scatter',
+                            showLine: false,
+                            pointRadius: 6,
+                            pointStyle: 'triangle'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,  // กำหนดให้กราฟปรับขนาดตามหน้าจอ
+                    maintainAspectRatio: false,  // ปิดการรักษาสัดส่วนของกราฟ
+                    scales: {
+                        y1: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Soil Moisture (%)'
+                            }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Pump Status'
+                            },
+                            grid: {
+                                drawOnChartArea: false,  // ไม่ต้องแสดงเส้นกริดบนแกน y ของ Pump Status
+                            }
+                        }
+                    },
+                    tooltips: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                if (tooltipItem.datasetIndex === 1 || tooltipItem.datasetIndex === 2) {
+                                    return tooltipItem.raw ? 'Control Pump On' : 'Control Pump Off';
+                                } else if (tooltipItem.datasetIndex === 3 || tooltipItem.datasetIndex === 4) {
+                                    return tooltipItem.raw ? 'Manual Pump On' : 'Manual Pump Off';
+                                }
+                                return tooltipItem.raw + ' %';
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // เรียกใช้ฟังก์ชันสร้างกราฟเมื่อโหลดหน้าเว็บ
+        createChart();
+    </script>
+</body>
+</html>

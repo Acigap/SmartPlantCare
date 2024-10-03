@@ -86,6 +86,22 @@ void startAPMode() {
   }
 }
 
+// ฟังก์ชันในการอ่านข้อมูลจากไฟล์ CSV
+String readCSV() {
+  File file = SD_MMC.open(csvFilename);
+  if (!file) {
+    return "";
+  }
+  
+  String data = "";
+  while (file.available()) {
+    data += file.readStringUntil('\n') + "\n";
+  }
+  
+  file.close();
+  return data;
+}
+
 void startWifiServer() {
   server.on("/", []() {
     String html = "<html lang='th'><head><meta charset='UTF-8'>";
@@ -109,9 +125,29 @@ void startWifiServer() {
     html += "<li><a href='/veggieSelection'>Select Veggie Type</a></li>";
     html += "<li><a href='/configParameter'>Config parameter</a></li>";  // เพิ่มหน้าใหม่สำหรับการตั้งค่า wetValue
     html += "<li><a href='/configBlynk'>Config Blynk Type</a></li>";
+    html += "<li><a href='/chart'>Chart</a></li>";
     html += "</ul>";
     html += "</div></body></html>";
     server.send(200, "text/html", html);
+  });
+
+  server.on("/chart", HTTP_GET, []() {
+    File file = SD_MMC.open("/chart.html");
+    if (!file) {
+      Serial.println("Failed to open file for reading");
+      server.send(500, "text/plain", "Failed to open file");
+      return;
+    }
+
+    if (server.streamFile(file, "text/html") != file.size()) {
+      Serial.println("Sent less data than expected!");
+    }
+  });
+
+  // ส่งข้อมูล CSV ไปยัง client
+  server.on("/data", []() {
+    String csvData = readCSV();
+    server.send(200, "text/plain", csvData);
   });
 
   server.on("/veggieSelection", []() {
