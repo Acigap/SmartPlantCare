@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Data Graph</title>
+    <title>SmartPlantCare Graph</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -34,7 +34,7 @@
     </style>
 </head>
 <body>
-    <h1>ESP32 Data Graph</h1>
+    <h1>SmartPlantCare Graph</h1>
     <div id="loading">Loading...</div>
     <div id="chartContainer">
         <canvas id="myChart" style="display:none;"></canvas>
@@ -69,6 +69,11 @@
                 if (actionType === "SoilMoisture") {
                     lastSoilMoistureValue = parseFloat(actionValue);  // บันทึกค่าความชื้นล่าสุด
                     soilMoistureValues.push(lastSoilMoistureValue); // ความชื้นในดิน
+
+                    controlPumpOpen.push(null);
+                    controlPumpClose.push(null);
+                    manualPumpOpen.push(null);
+                    manualPumpClose.push(null);
                 } else {
                     soilMoistureValues.push(lastSoilMoistureValue);  // ถ้าไม่ใช่ค่าความชื้น ให้ใช้ค่าล่าสุด
 
@@ -81,6 +86,8 @@
                             controlPumpOpen.push(null);
                             controlPumpClose.push(lastSoilMoistureValue);
                         }
+                        manualPumpOpen.push(null);
+                        manualPumpClose.push(null);
                     } else if (actionType === "ManualPump") {
                         if (actionValue === 'Start') {
                             manualPumpOpen.push(lastSoilMoistureValue);
@@ -89,6 +96,8 @@
                             manualPumpOpen.push(null);
                             manualPumpClose.push(lastSoilMoistureValue);
                         }
+                        controlPumpOpen.push(null);
+                        controlPumpClose.push(null);
                     } else {
                         controlPumpOpen.push(null);
                         controlPumpClose.push(null);
