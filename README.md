@@ -109,7 +109,7 @@
 ## Image 
 ![Wiring Diagram](image/IMG_2482.jpeg)
 ![Wiring Diagram](image/IMG_2568.jpeg)
-![Wiring Diagram](imag/IMG_2716.png)
+![Wiring Diagram](image/IMG_2716.png)
 
 ## Troubleshooting
 
