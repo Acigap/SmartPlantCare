@@ -5,9 +5,9 @@
  *************************************************************/
 
  /* Fill-in information from Blynk Device Info here */
-#define BLYNK_TEMPLATE_ID           "TMPL6Iq1HOFra"
-#define BLYNK_TEMPLATE_NAME         "Quickstart Template"
-#define BLYNK_AUTH_TOKEN            "vU9_myPzoMrSpRNUiiWZhlFZxo7qD5DG"
+#define BLYNK_TEMPLATE_ID           "xxxxxx"
+#define BLYNK_TEMPLATE_NAME         "xxxxxx"
+#define BLYNK_AUTH_TOKEN            "xxxxxx"
 
 #include <WiFi.h>
 #include <WiFiClient.h>
