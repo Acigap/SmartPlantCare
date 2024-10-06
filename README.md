@@ -106,6 +106,11 @@
 
 *Include a diagram showing how to connect the components to ESP32.*
 
+## Image 
+![Wiring Diagram](image/IMG_2482.jpeg)
+![Wiring Diagram](image/IMG_2568.jpeg)
+![Wiring Diagram](imag/IMG_2716.png)
+
 ## Troubleshooting
 
 - **Display not working**: Ensure the `TFT_eSPI` library is properly configured for **ESP32 T-Display-S3**.
