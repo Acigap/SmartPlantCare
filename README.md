@@ -82,6 +82,18 @@
 - The system logs data to a CSV file on the SD card every hour.
 - The CSV log includes a timestamp, soil moisture level, and any watering actions.
 
+### 7. Libraries Used
+
+This project utilizes the following libraries, which can be found in the [T-Display-S3 GitHub repository](https://github.com/Xinyuan-LilyGO/T-Display-S3):
+
+- **TFT_eSPI**: For controlling the TFT display on the ESP32 T-Display-S3.
+- **Blynk**: For remote control and monitoring via the Blynk application.
+- **SD**: For handling SD card operations to log data.
+- **ESPAsyncWebServer**: To create a web server for real-time monitoring and configuration.
+- **AsyncTCP**: To handle asynchronous TCP connections for the web server.
+
+Ensure you install these libraries through the Arduino Library Manager or download them from their respective repositories.
+
 ## Usage
 
 1. **Initial Setup**:
