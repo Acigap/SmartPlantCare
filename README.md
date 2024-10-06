@@ -103,8 +103,8 @@
    - You can download the logs from the web interface.
 
 ## Wiring Diagram
+![Wiring Diagram](image/beradbord.PNG)
 
-*Include a diagram showing how to connect the components to ESP32.*
 
 ## Image 
 ![Wiring Diagram](image/IMG_2482.jpeg)
