@@ -10,6 +10,8 @@
 #include "ServerSD.h"
 #include "smart_irrigation.h"
 #include <ArduinoOTA.h>
+#include "Wire.h"
+#include "SHT31.h"
 
 const char *hostSDServer = "esp32sd";
 const char *ntpServer = "pool.ntp.org";
@@ -20,6 +22,12 @@ const char *startPlanTimeFilename = "/startPlanTime.txt";
 #define RELAY_PIN 1          // พินของ relay
 #define SOIL_MOISTURE_PIN 2  // ขาอนาล็อกที่ใช้ในการวัดความชื้นในดิน
 #define BUTTOPN_PIN 14       // พินของ ปุ่มล่าง ของจอด้านหน้า
+
+// I2C สำหรับวัดความชื้น SHT31
+#define SHT31_ADDRESS   0x44
+#define SDA_PIN 21  // ระบุพิน SDA เขียว
+#define SCL_PIN 17  // ระบุพิน SCL เหลือง
+SHT31 sht;
 
 // เก็บ State กันการ set ค่าซ้ำ
 bool buttonState = 0;
@@ -37,7 +45,7 @@ int dryValue = 4095;        // ค่าอนาล็อกเมื่อด�
 int wetValue = 2400;        // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ)
 int displayCountDown = 30;  // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
 int buttonCountDown = 0;    // hold button count
-String lastWatering = "";   // เวลารดน้ำล่าสุด
+char *lastWatering = "";   // เวลารดน้ำล่าสุด
 
 VeggieType veggie = KALE;  // เลือกชนิดของผัก (คะน้า)
 
@@ -61,22 +69,38 @@ int calculateDaysPlanted() {
 }
 
 int readSoilMoisture() {
-  int total = 0;
-  int readings = 5;  // จำนวนครั้งที่ต้องการอ่านค่า
+  int soilMoisturePercent = 0;
+  uint16_t stat = sht.readStatus();
+  // Serial.print(stat, HEX);
 
-  // อ่านค่าจาก SOIL_MOISTURE_PIN จำนวน 3 ครั้งแล้วรวมค่า
-  for (int i = 0; i < readings; i++) {
-    total += analogRead(SOIL_MOISTURE_PIN);  // อ่านค่า SOIL_MOISTURE_PIN
-    delay(30);                               // หน่วงเวลาเล็กน้อย (30 ms) ระหว่างการอ่านแต่ละครั้ง
+  if (stat != 0xFFFF) { // check SHT31 senser.
+    sht.read(); 
+    // Serial.print("\t");
+    // Serial.print(sht.getTemperature(), 1);
+    // Serial.print("\t");
+    // Serial.println(sht.getHumidity(), 1);
+    soilMoisturePercent = sht.getHumidity();
+    virtualWriteV4(0);
+    delay(100);
+  } else { // if SHT31 not connect, So get soilMoisture from SOIL_MOISTURE_PIN
+    Serial.println("SHT31 error.");
+    float soilMoisture = 0;
+    int total = 0;
+    int readings = 5;  // จำนวนครั้งที่ต้องการอ่านค่า
+    // อ่านค่าจาก SOIL_MOISTURE_PIN จำนวน 3 ครั้งแล้วรวมค่า
+    for (int i = 0; i < readings; i++) {
+      total += analogRead(SOIL_MOISTURE_PIN);  // อ่านค่า SOIL_MOISTURE_PIN
+      delay(30);                               // หน่วงเวลาเล็กน้อย (30 ms) ระหว่างการอ่านแต่ละครั้ง
+    }
+    // หาค่าเฉลี่ย
+    soilMoisture = total / readings;
+    // Serial.println("soilMoistureA0: ");
+    // Serial.print(average);
+    virtualWriteV4(soilMoisture);
+    soilMoisturePercent = map(soilMoisture, wetValue, dryValue, 100, 0);
   }
-  
+ 
 
-  // หาค่าเฉลี่ย
-  int average = total / readings;
-  // Serial.println("soilMoistureA0: ");
-  // Serial.print(average);
-  virtualWriteV4(average);
-  int soilMoisturePercent = map(average, wetValue, dryValue, 100, 0);
   // ตรวจสอบว่าค่าความชื้นอยู่ในช่วงที่ถูกต้อง
   if (soilMoisturePercent >= 100) {
     soilMoisturePercent = 100;
@@ -116,10 +140,10 @@ void controlWaterPump(bool state, int moisture, bool isManual) {
     logSDd(action, "Stop");
   }
 
-  Serial.println(String(action) + "" + String(state));
+  // Serial.println(String(action) + "" + String(state));
 }
 
-void displayInfo(int moisture, int days, String strLastWatering) {
+void displayInfo(int moisture, int days, char *strLastWatering) {
   tft.fillScreen(TFT_BLACK);
   tft.pushImage(165, 10, 155, 170, hothead);
 
@@ -152,7 +176,7 @@ void checkSoilMoisture(int moisture) {
 }
 
 // ฟังก์ชันสำหรับดึงและแสดงวันที่และเวลาปัจจุบันในรูปแบบ yyyy-mm-dd HH:mm
-String getCurrentDateTime() {
+char* getCurrentDateTime() {
   // ดึงเวลาปัจจุบันในรูปแบบ epoch time
   time_t now = time(NULL);
 
@@ -170,7 +194,7 @@ String getCurrentDateTime() {
   char dateTimeBuffer[20];
   snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%04d-%02d-%02d %02d:%02d", year, month, day, hour, minute);
   // Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-  return String(dateTimeBuffer);  // คืนค่าเป็น String
+  return dateTimeBuffer; 
 }
 
 void initWiFi() {
@@ -271,6 +295,16 @@ void checkPumpCoolingDown() {
   }
 }
 
+void setupSHT31() {
+  Wire.begin(SDA_PIN, SCL_PIN);
+  sht.begin(SHT31_ADDRESS);
+  Wire.setClock(100000);
+
+  uint16_t stat = sht.readStatus();
+  Serial.print(stat, HEX);
+  Serial.println();
+}
+
 void setUpOTA() {
   // เริ่มต้นการทำงาน OTA
   ArduinoOTA.onStart([]() {
@@ -345,13 +379,15 @@ void setup() {
   // log
   createLogFile();
   logSDd("Esp32Start", "initOK");
-  //readFile(csvFilename);
-  // readFile(startPlanTimeFilename);
   String startStr = readFileToString(startPlanTimeFilename);
-  plantingTime = startStr.toInt();
-  Serial.println("startStr: " + startStr);
-  Serial.println(plantingTime);
-
+  if (startStr.isEmpty()) {
+     plantingTime = time(NULL);
+  } else {
+    plantingTime = startStr.toInt();
+    Serial.println("startStr: " + startStr);
+    Serial.println(plantingTime);
+  }
+  
   preferences.begin("VeggieType", false);
   int32_t veggieTypeInt = preferences.getInt("selectedVeggie", 5);
   // ดึงค่าจาก Preferences
@@ -365,9 +401,11 @@ void setup() {
   pumpRunTime = preferences.getLong("pumpRunTime", pumpRunTime);  // ค่าเริ่มต้นคือ 0
   pumpRestTime = preferences.getLong("coolingDownTime", pumpRunTime);  // ค่าเริ่มต้นคือ 0
   preferences.end();
-  Serial.println("WetValue: " + String(wetValue));
-  Serial.println("DryValue: " + String(dryValue));
+  // Serial.println("WetValue: " + String(wetValue));
+  // Serial.println("DryValue: " + String(dryValue));
   setUpOTA();
+  setupSHT31();
+  Serial.println("**************** SetUp End ****************");
 }
 
 void loop() {
