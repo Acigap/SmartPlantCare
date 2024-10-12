@@ -83,7 +83,7 @@ int readSoilMoisture() {
     virtualWriteV4(0);
     delay(100);
   } else { // if SHT31 not connect, So get soilMoisture from SOIL_MOISTURE_PIN
-    Serial.println("SHT31 error.");
+    //Serial.println("SHT31 error.");
     float soilMoisture = 0;
     int total = 0;
     int readings = 5;  // จำนวนครั้งที่ต้องการอ่านค่า
