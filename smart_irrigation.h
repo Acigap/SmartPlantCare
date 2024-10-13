@@ -12,7 +12,8 @@ enum VeggieType {
   LETTUCE,          // ผักกาดหอม
   ICEBERG_LETTUCE,  // ผักกาดแก้ว
   CUCUMBER,          // แตงกวา
-  CHILI             // พริก
+  CHILI,             // พริก
+  MANUL
 };
 
 void getMoistureRange(VeggieType veggie, int &threshold, int &stop, int sensorMin, int sensorMax);

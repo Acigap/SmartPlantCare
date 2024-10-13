@@ -179,6 +179,7 @@ void startWifiServer() {
     html += "<option value='8'" + String(veggieType == 8 ? " selected" : "") + ">ผักกาดแก้ว - ปลูก: 55-65 วัน, รดน้ำ: 45%, หยุดรดน้ำ: 65%</option>";
     html += "<option value='9'" + String(veggieType == 9 ? " selected" : "") + ">แตงกวา - ปลูก: 50-60 วัน, รดน้ำ: 50%, หยุดรดน้ำ: 70%</option>";
     html += "<option value='10'" + String(veggieType == 10 ? " selected" : "") + ">พริก - ปลูก: 60-90 วัน, รดน้ำ: 35%, หยุดรดน้ำ: 55%</option>";
+    html += "<option value='11'" + String(veggieType == 11 ? " selected" : "") + ">ตั้งค่าเอง</option>";
     html += "</select><br>";
 
     html += "<br><input type='submit' value='Select' style='margin-right: 10px;'>";
