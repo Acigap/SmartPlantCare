@@ -47,7 +47,7 @@ int dryValue = 4095;        // ค่าอนาล็อกเมื่อด�
 int wetValue = 2400;        // ค่าอนาล็อกเมื่อดินเปียกเต็มที่ (เซนเซอร์อยู่ในน้ำ)
 int displayCountDown = 30;  // สำหรับนับถอยหลังเพื่อปิดหน้าจอ
 int buttonCountDown = 0;    // hold button count
-char *lastWatering = "";   // เวลารดน้ำล่าสุด
+String lastWatering = "";   // เวลารดน้ำล่าสุด
 
 VeggieType veggie = KALE;  // เลือกชนิดของผัก (คะน้า)
 
@@ -83,7 +83,7 @@ int readSoilMoisture() {
     // Serial.println(sht.getHumidity(), 1);
     soilMoisturePercent = sht.getHumidity();
     virtualWriteV4(0);
-    delay(100);
+    delay(150);
   } else { // if SHT31 not connect, So get soilMoisture from SOIL_MOISTURE_PIN
     //Serial.println("SHT31 error.");
     float soilMoisture = 0;
@@ -137,15 +137,17 @@ void controlWaterPump(bool state, int moisture, bool isManual) {
     logSDd(action, "Start");
     pumpStartTime = millis(); // บันทึกเวลาที่เริ่มเปิดปั้มน้ำ
     isPumpCoolingDown = false; // รีเซ็ตสถานะการพัก
+    Serial.println("**Open Pump**");
   } else {
     digitalWrite(RELAY_PIN, HIGH);  // ปิดปั้มน้ำ
     logSDd(action, "Stop");
+    Serial.println("**Close Pump**");
   }
 
   // Serial.println(String(action) + "" + String(state));
 }
 
-void displayInfo(int moisture, int days, char *strLastWatering) {
+void displayInfo(int moisture, int days, String strLastWatering) {
   tft.fillScreen(TFT_BLACK);
   tft.pushImage(165, 10, 155, 170, hothead);
 
@@ -178,7 +180,7 @@ void checkSoilMoisture(int moisture) {
 }
 
 // ฟังก์ชันสำหรับดึงและแสดงวันที่และเวลาปัจจุบันในรูปแบบ yyyy-mm-dd HH:mm
-char* getCurrentDateTime() {
+String getCurrentDateTime() {
   // ดึงเวลาปัจจุบันในรูปแบบ epoch time
   time_t now = time(NULL);
 
@@ -196,7 +198,7 @@ char* getCurrentDateTime() {
   char dateTimeBuffer[20];
   snprintf(dateTimeBuffer, sizeof(dateTimeBuffer), "%04d-%02d-%02d %02d:%02d", year, month, day, hour, minute);
   // Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
-  return dateTimeBuffer; 
+  return String(dateTimeBuffer); 
 }
 
 void initWiFi() {
@@ -298,8 +300,9 @@ void checkPumpCoolingDown() {
 }
 
 void setupSHT31() {
+  Serial.println("setupSHT31");
   Wire.begin(SDA_PIN, SCL_PIN);
-  sht.begin(SHT31_ADDRESS);
+  sht.begin();
   Wire.setClock(100000);
 
   uint16_t stat = sht.readStatus();
@@ -308,6 +311,7 @@ void setupSHT31() {
 }
 
 void setUpOTA() {
+  Serial.println("setUpOTA");
   // เริ่มต้นการทำงาน OTA
   ArduinoOTA.onStart([]() {
     String type;
@@ -378,6 +382,7 @@ void setup() {
   setupBlynk();                                // ตั้งค่า Blynk lib
   setupServerSD(hostSDServer, onStartAPMode);  // ตั้งค่า web server
 
+  Serial.println("Setup log file.");
   // log
   createLogFile();
   logSDd("Esp32Start", "initOK");
@@ -390,6 +395,7 @@ void setup() {
     Serial.println(plantingTime);
   }
   
+  Serial.println("Read preferences and setup ConfigParameter");
   preferences.begin("VeggieType", false);
   int32_t veggieTypeInt = preferences.getInt("selectedVeggie", 5);
   // ดึงค่าจาก Preferences
@@ -407,6 +413,7 @@ void setup() {
   // Serial.println("DryValue: " + String(dryValue));
   setUpOTA();
   setupSHT31();
+  virtualWriteV0(0); // Send 0 when fist open
   Serial.println("**************** SetUp End ****************");
 }
 
@@ -449,7 +456,7 @@ void loop() {
       char temp[10];
       ltoa(plantingTime, temp, 10);
       writeFile(startPlanTimeFilename, temp);
-      buttonCountDown = 33;
+      buttonCountDown = 10;
       Serial.println(plantingTime);
       Serial.println(temp);
 
@@ -468,15 +475,16 @@ void loop() {
       delay(3000);
     } else {
       Serial.println(buttonCountDown);
-      tft.fillRect(0, 140, 165, 175, TFT_BLACK);  //horiz, vert
-      tft.setCursor(0, 155);
-      tft.setTextColor(TFT_BLUE);
-      if (buttonCountDown <= 30) {  // ไม่แสดงค่านับถอนหลัง้ากดไปแค่ 1-2 วินาที
+      if (buttonCountDown <= 9) {  // ไม่แสดงค่านับถอนหลัง้ากดไปแค่ 1-2 วินาที
+        tft.fillRect(0, 140, 165, 175, TFT_BLACK);  //horiz, vert
+        tft.setCursor(0, 155);
+        tft.setTextColor(TFT_BLUE);
         tft.println("Set start plant <-- " + String(buttonCountDown));
       }
     }
+    delay(500);
   } else {
-    buttonCountDown = 33;
+    buttonCountDown = 10;
   }
 
   if (displayCountDown <= 0) {

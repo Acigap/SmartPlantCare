@@ -51,6 +51,10 @@ BLYNK_WRITE(V0)
 BLYNK_WRITE(V5)
 {   
   _sensorMin = (param.asInt()); // Get value as integer
+  Preferences preferences;
+  preferences.begin("ConfigParameter", false);
+  preferences.putInt("sensorMin", _sensorMin);   
+  preferences.end();
   Serial.println("sensorMin:");
   Serial.println(_sensorMin);
 }
@@ -58,6 +62,10 @@ BLYNK_WRITE(V5)
 BLYNK_WRITE(V6)
 {   
   _sensorMax = (param.asInt()); // Get value as integer
+  Preferences preferences;
+  preferences.begin("ConfigParameter", false);
+  preferences.putInt("sensorMax", _sensorMax);  
+  preferences.end();
   Serial.println("sensorMax:");
   Serial.println(_sensorMax);
 }
@@ -84,6 +92,11 @@ void setupBlynk()
   String blynkAuthToken = preferences.getString("authToken", String(BLYNK_AUTH_TOKEN));  
   String blynkTemplateID = preferences.getString("templateID", String(BLYNK_TEMPLATE_ID));  
   String blynkTemplateName = preferences.getString("templateName", String(BLYNK_TEMPLATE_NAME));  
+  preferences.end();
+  delay(200);
+  preferences.begin("ConfigParameter", false);
+  _sensorMin = preferences.getInt("sensorMin", _sensorMin);  // ค่าเริ่มต้นคือ sensorMin
+  _sensorMax = preferences.getInt("sensorMax", _sensorMax);  // ค่าเริ่มต้นคือ sensorMax
   preferences.end();
 
   if (WiFi.status() == WL_CONNECTED) {

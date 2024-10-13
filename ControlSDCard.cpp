@@ -2,13 +2,9 @@
 #include "SD_MMC.h" // สำหรับจัดการ SD card
 #include "ControlSDCard.h"
 
-bool isStart = false;
 
 String readFileToString(const char *path)
 {
-  if (!isStart) {
-    return "";
-  }
   File file = SD_MMC.open(path);
   if (!file) {
     Serial.println("Failed to open file for reading");
@@ -24,9 +20,6 @@ String readFileToString(const char *path)
 
 void writeFile(const char *path, const char *message)
 {
-  if (!isStart) {
-    return ;
-  }
   Serial.printf("Writing file: %s\n", path);
 
   File file = SD_MMC.open(path, FILE_WRITE);
@@ -43,9 +36,6 @@ void writeFile(const char *path, const char *message)
 
 void appendFile(const char *path, const char *message)
 {
-  if (!isStart) {
-    return;
-  }
   //Serial.printf("Appending to file: %s\n", path);
 
   File file = SD_MMC.open(path, FILE_APPEND);
@@ -62,9 +52,6 @@ void appendFile(const char *path, const char *message)
 
 void renameFile(const char *path1, const char *path2)
 {
-  if (!isStart) {
-    return;
-  }
   Serial.printf("Renaming file %s to %s\n", path1, path2);
   if (SD_MMC.rename(path1, path2)) {
     Serial.println("File renamed");
@@ -101,5 +88,4 @@ void setupSDCard() {
   Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
   Serial.printf("Total space: %lluMB\n", SD_MMC.totalBytes() / (1024 * 1024));
   Serial.printf("Used space: %lluMB\n", SD_MMC.usedBytes() / (1024 * 1024));
-  isStart = true;
 }

@@ -134,8 +134,8 @@ void startWifiServer() {
   server.on("/chart", HTTP_GET, []() {
     File file = SD_MMC.open("/chart.html");
     if (!file) {
-      Serial.println("Failed to open file for reading");
-      server.send(500, "text/plain", "Failed to open file");
+      Serial.println("Failed to open chart.html file for SD reading");
+      server.send(500, "text/plain", "Failed to open chart.html file");
       return;
     }
 
