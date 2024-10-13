@@ -15,6 +15,6 @@ enum VeggieType {
   CHILI             // พริก
 };
 
-void getMoistureRange(VeggieType veggie, int &threshold, int &stop);
+void getMoistureRange(VeggieType veggie, int &threshold, int &stop, int sensorMin, int sensorMax);
 const char* veggieToString(VeggieType veggie);
-bool checkPumpControl(VeggieType veggie, int soilMoisture);
+bool checkPumpControl(VeggieType veggie, int soilMoisture, int sensorMin, int sensorMax);

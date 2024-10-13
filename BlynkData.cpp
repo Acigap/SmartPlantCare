@@ -18,9 +18,19 @@
 const char* host = "blynk.cloud";
 int port = 80;
 static int switchPum = 0;
+int _sensorMin = 0;
+int _sensorMax = 0;
 
 BLYNK_CONNECTED() {
     Blynk.syncAll();
+}
+
+int getSensorMin() {
+  return _sensorMin;
+}
+
+int getSensorMax() {
+  return _sensorMax;
 }
 
 int getSwitchPum() {
@@ -36,6 +46,20 @@ BLYNK_WRITE(V0)
   // The param can contain multiple values, in such case:
   // int x = param[0].asInt();
   // int y = param[1].asInt();
+}
+
+BLYNK_WRITE(V5)
+{   
+  _sensorMin = (param.asInt()); // Get value as integer
+  Serial.println("sensorMin:");
+  Serial.println(_sensorMin);
+}
+
+BLYNK_WRITE(V6)
+{   
+  _sensorMax = (param.asInt()); // Get value as integer
+  Serial.println("sensorMax:");
+  Serial.println(_sensorMax);
 }
 
 void virtualWriteV0(int value) {

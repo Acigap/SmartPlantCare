@@ -21,7 +21,7 @@
 static bool pumpStatus = false;
 
 // ฟังก์ชันที่ใช้คืนค่าความชื้นที่ควรรดน้ำและควรหยุดรดน้ำ
-void getMoistureRange(VeggieType veggie, int &threshold, int &stop) 
+void getMoistureRange(VeggieType veggie, int &threshold, int &stop, int sensorMin, int sensorMax) 
 {
   switch(veggie) {
     case CILANTRO:
@@ -58,7 +58,7 @@ void getMoistureRange(VeggieType veggie, int &threshold, int &stop)
       threshold = 35; stop = 55;
       break;
     default:
-      threshold = 40; stop = 60; // Default case
+      threshold = sensorMin; stop = sensorMax; // Default case
   }
 }
 // นิยามฟังก์ชัน veggieToString
@@ -80,9 +80,9 @@ const char* veggieToString(VeggieType veggie) {
 }
 
 // ฟังก์ชันที่ใช้ตรวจสอบและควบคุมปั๊มน้ำ
-bool checkPumpControl(VeggieType veggie, int soilMoisture) {
+bool checkPumpControl(VeggieType veggie, int soilMoisture, int sensorMin, int sensorMax) {
   int threshold, stop;
-  getMoistureRange(veggie, threshold, stop);
+  getMoistureRange(veggie, threshold, stop, sensorMin, sensorMax);
 
   if (soilMoisture <= threshold) {
     pumpStatus = true;  // เปิดปั๊มน้ำ

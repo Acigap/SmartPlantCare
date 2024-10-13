@@ -3,7 +3,7 @@
 #include <TFT_eSPI.h>  // สำหรับหน้าจอ T-display-s3
 #include "hothead.h"
 #include <HTTPClient.h>
-#include <WiFi.h>
+#include <WiFi.h>+
 #include "Free_Fonts.h"     //free fonts must be included in the folder and quotes
 #include "ControlSDCard.h"  // สำหรับจัดการเรื่อง SD Card และไฟล์
 #include "BlynkData.h"
@@ -28,6 +28,8 @@ const char *startPlanTimeFilename = "/startPlanTime.txt";
 #define SDA_PIN 21  // ระบุพิน SDA เขียว
 #define SCL_PIN 17  // ระบุพิน SCL เหลือง
 SHT31 sht;
+int sensorMin = 0;
+int sensorMax = 0;
 
 // เก็บ State กันการ set ค่าซ้ำ
 bool buttonState = 0;
@@ -148,7 +150,7 @@ void displayInfo(int moisture, int days, char *strLastWatering) {
   tft.pushImage(165, 10, 155, 170, hothead);
 
   int threshold, stop;
-  getMoistureRange(veggie, threshold, stop);
+  getMoistureRange(veggie, threshold, stop, sensorMin, sensorMax);
 
   tft.setTextColor(TFT_WHITE);
   tft.setFreeFont(FSS9);
@@ -167,7 +169,7 @@ void displayInfo(int moisture, int days, char *strLastWatering) {
 void checkSoilMoisture(int moisture) {
   virtualWriteV2(moisture);
   // ตรวจสอบการควบคุมปั๊มน้ำ
-  bool isPumpOn = checkPumpControl(veggie, moisture);
+  bool isPumpOn = checkPumpControl(veggie, moisture, sensorMin, sensorMax);
   if (checkSoilStat == isPumpOn) {
     return;
   }
@@ -409,6 +411,8 @@ void setup() {
 }
 
 void loop() {
+  sensorMin = getSensorMin();
+  sensorMax = getSensorMax(); 
   ArduinoOTA.handle();                    // ตรวจสอบการเชื่อมต่อ OTA
   int soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
   checkSoilMoisture(soilMoisture);        // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
