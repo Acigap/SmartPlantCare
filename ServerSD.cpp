@@ -10,11 +10,41 @@ const char *hostLocal;
 const char *apName = "MyPlant";
 const char *apPWD = "12345678";
 
+// Timeout ในการเชื่อมต่อ
+const unsigned long wifiTimeout = 30000;  // 30 วินาที
+unsigned long lastAttemptTime = 0;
+
 WebServer server(80);
 Preferences preferences;
 
 // ตัวแปร global เพื่อเก็บ callback ที่รับเข้ามา
 void (*storedCallback)(String, String, String) = nullptr;
+
+void connectToWiFi() {
+  // เริ่มต้น Preferences
+  preferences.begin("WiFiCreds", false);
+  // ดึง SSID และ Password ที่เก็บไว้
+  String ssid = preferences.getString("ssid", "");
+  String password = preferences.getString("password", "");
+  // พยายามเชื่อมต่อ WiFi
+  if (ssid.length() > 0 && password.length() > 0) {
+    // ถ้า SSID และ Password มีค่า จะลองเชื่อมต่อ WiFi
+    WiFi.begin(ssid.c_str(), password.c_str());
+    Serial.print("Connecting to WiFi");
+  }
+  preferences.end();  // ปิดการใช้งาน Preferences
+  lastAttemptTime = millis();  // บันทึกเวลาที่พยายามเชื่อมต่อครั้งล่าสุด
+}
+
+void checkWiFiConnection() {
+   if (WiFi.status() != WL_CONNECTED) {
+    // เช็คว่าผ่านไป 30 วินาทีแล้วหรือยัง ตั้ง Timeout ให้พยายามเชื่อมต่อใหม่
+    if (millis() - lastAttemptTime >= wifiTimeout) {
+      Serial.println("WiFi not connected, attempting to reconnect...");
+      connectToWiFi();
+    }
+  }
+}
 
 void setupServerSD(const char *host, void (*callback)(String, String, String)) {
   Serial.setDebugOutput(false);
@@ -32,11 +62,12 @@ void setupServerSD(const char *host, void (*callback)(String, String, String)) {
     startHostName(host);
   } else {
     // ถ้าเชื่อมต่อไม่สำเร็จ
-    Serial.println("\nFailed to connect, starting AP mode...");
+    Serial.println("\nFailed to connect \nStarting AP mode...");
     startAPMode();
     // รอให้ผู้ใช้ตั้งค่า WiFi ใหม่
     while (WiFi.status() != WL_CONNECTED) {
       server.handleClient();  // รอให้ผู้ใช้กรอก SSID และ Password ใหม่
+      checkWiFiConnection();
       delay(100);
     }
     startHostName(host);
@@ -73,7 +104,21 @@ void startSDServer() {
 
 // ฟังก์ชันเริ่มโหมด AP
 void startAPMode() {
+  // กำหนดค่า IP Address คงที่
+  IPAddress local_ip(192, 168, 4, 1);       // IP ของ ESP32
+  IPAddress gateway(192, 168, 4, 1);        // Gateway (เช่นเดียวกับ IP ของ AP)
+  IPAddress subnet(255, 255, 255, 0);       // Subnet mask
+  IPAddress dns(8, 8, 8, 8);                // กำหนดค่า DNS (ถ้าจำเป็น)
+   // ตั้งค่า WiFi เป็น AP Mode
+  WiFi.mode(WIFI_AP);
+
+  // กำหนด IP Address คงที่ให้กับ ESP32 ใน AP Mode พร้อม DNS
+  if (!WiFi.softAPConfig(local_ip, gateway, subnet, dns)) {
+    Serial.println("Failed to configure AP");
+  }
+
   WiFi.softAP(apName, apPWD);
+
   Serial.println("Access Point started");
   Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());

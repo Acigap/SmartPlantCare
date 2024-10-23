@@ -2,6 +2,7 @@
 #define CUSTOM_TIMEZONE "CST-8" China time zone
 #include <TFT_eSPI.h>  // สำหรับหน้าจอ T-display-s3
 #include "hothead.h"
+#include "watering.h"
 #include <HTTPClient.h>
 #include <WiFi.h>+
 #include "Free_Fonts.h"     //free fonts must be included in the folder and quotes
@@ -30,6 +31,7 @@ const char *startPlanTimeFilename = "/startPlanTime.txt";
 SHT31 sht;
 int sensorMin = 0;
 int sensorMax = 0;
+int soilMoisture = 0;
 
 // เก็บ State กันการ set ค่าซ้ำ
 bool buttonState = 0;
@@ -53,6 +55,7 @@ VeggieType veggie = KALE;  // เลือกชนิดของผัก (ค
 
 static unsigned long lastLogTime = 0;      // loop check log time
 static unsigned long lastDisplayTime = 0;  // loop check display time
+static unsigned long lastReadDataTime = 0;  // loop check read data time
 time_t plantingTime = 1680000000;          // เวลาในรูปแบบ epoch เมื่อเริ่มปลูก
 
 TFT_eSPI tft = TFT_eSPI();
@@ -144,12 +147,17 @@ void controlWaterPump(bool state, int moisture, bool isManual) {
     Serial.println("**Close Pump**");
   }
 
+  lastDisplayTime = 0; // Show info now.
   // Serial.println(String(action) + "" + String(state));
 }
 
 void displayInfo(int moisture, int days, String strLastWatering) {
   tft.fillScreen(TFT_BLACK);
-  tft.pushImage(165, 10, 155, 170, hothead);
+  if(waterPumpState) {
+    tft.pushImage(165, 10, 155, 170, watering);
+  } else {
+    tft.pushImage(165, 10, 155, 170, hothead);
+  }
 
   int threshold, stop;
   getMoistureRange(veggie, threshold, stop, sensorMin, sensorMax);
@@ -166,6 +174,14 @@ void displayInfo(int moisture, int days, String strLastWatering) {
   tft.println(strLastWatering);
   tft.println("Soil Moisture(%): " + String(moisture));
   tft.println("Web: http://" + String(hostSDServer) + ".local");
+  if(isConnected() == false) {
+    tft.setTextColor(TFT_RED);
+  } else {
+    tft.setTextColor(TFT_GREEN);
+  }
+  tft.setFreeFont(FSB9);
+  tft.setCursor(270, 160);
+  tft.println("Blynk");
 }
 
 void checkSoilMoisture(int moisture) {
@@ -212,17 +228,7 @@ void initWiFi() {
   delay(500);
   WiFi.mode(WIFI_STA);
 
-  // เริ่มต้น Preferences
-  preferences.begin("WiFiCreds", false);
-  // ดึง SSID และ Password ที่เก็บไว้
-  String ssid = preferences.getString("ssid", "");
-  String password = preferences.getString("password", "");
-  if (ssid.length() > 0 && password.length() > 0) {
-    // ถ้า SSID และ Password มีค่า จะลองเชื่อมต่อ WiFi
-    WiFi.begin(ssid.c_str(), password.c_str());
-    Serial.print("Connecting to WiFi");
-  }
-  preferences.end();  // ปิดการใช้งาน Preferences
+  connectToWiFi();
 
   int attempt = 0;
   const int max_attempts = 20;
@@ -418,12 +424,17 @@ void setup() {
 }
 
 void loop() {
-  sensorMin = getSensorMin();
-  sensorMax = getSensorMax(); 
   ArduinoOTA.handle();                    // ตรวจสอบการเชื่อมต่อ OTA
-  int soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
-  checkSoilMoisture(soilMoisture);        // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
+  loopServerSD();
+  loopBlynk();
 
+  if (millis() - lastReadDataTime >= 300) {  // 300 ms = 0.3 วินาที
+    sensorMin = getSensorMin();
+    sensorMax = getSensorMax(); 
+    soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
+    checkSoilMoisture(soilMoisture);        // ตรวจสอบความชื้นในดินและสั่งรดน้ำ
+    lastReadDataTime = millis();  
+  }
   if (millis() - lastDisplayTime >= 1000) {  // 1000 ms = 1 วินาที
     // แสดงข้อมูลบนหน้าจอ
     int daysPlanted = calculateDaysPlanted();              // คำนวณจำนวนวันที่ปลูกมาแล้ว
@@ -494,7 +505,4 @@ void loop() {
     // turn LED on:
     digitalWrite(PIN_LCD_BL, HIGH);
   }
-
-  loopBlynk();
-  loopServerSD();
 }

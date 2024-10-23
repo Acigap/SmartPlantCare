@@ -11,3 +11,4 @@ void startSDServer();
 void startAPMode();
 void startHostName(const char *host);
 void startWifiServer();
+void connectToWiFi();

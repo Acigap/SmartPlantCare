@@ -20,6 +20,7 @@ int port = 80;
 static int switchPum = 0;
 int _sensorMin = 0;
 int _sensorMax = 0;
+unsigned long _connectedTime = 0;
 
 BLYNK_CONNECTED() {
     Blynk.syncAll();
@@ -83,6 +84,10 @@ void virtualWriteV4(int value) {
   Blynk.virtualWrite(V4,value);
 }
 
+bool isConnected() {
+  return Blynk.connected();
+}
+
 void setupBlynk()
 {
   Serial.println("setupBlynk");
@@ -99,20 +104,29 @@ void setupBlynk()
   _sensorMax = preferences.getInt("sensorMax", _sensorMax);  // ค่าเริ่มต้นคือ sensorMax
   preferences.end();
 
+
   if (WiFi.status() == WL_CONNECTED) {
-    Blynk.config(blynkAuthToken.c_str());  
     // เริ่มต้น Blynk
-    //Blynk.begin(blynkAuthToken.c_str(), blynkTemplateID.c_str(), blynkTemplateName.c_str());
-    Blynk.connect(3000);  // time out 10 sec.
-    while (Blynk.connect() == false) {
-      // Wait until connected
-      Serial.println(".");
+    Blynk.config(blynkAuthToken.c_str());
+    Serial.println("Connecting Blynk...");
+    if(Blynk.connect(20000) == false) { // time out 20 sec.
+      Serial.println("Fail to onnect Blynk server!!");
+      _connectedTime = 0;
+    } else {
+      _connectedTime =  millis();
+      Serial.println("Connected to Blynk server");
     }
-    Serial.println("Connected to Blynk server");
   }
 }
 
 void loopBlynk()
 {
+  if(Blynk.connected() == false) {
+    if(_connectedTime != 0) { // เคย เชื่อมมามาแล้วแต่หลุด
+      ESP.restart();
+    } else if(WiFi.status() == WL_CONNECTED) { // ยังไม่เคยต่อได้แต่ ต่อ wifi ได้แล้ว 
+      ESP.restart();
+    }
+  }
   Blynk.run();
 }
