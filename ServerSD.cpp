@@ -26,13 +26,14 @@ void connectToWiFi() {
   // ดึง SSID และ Password ที่เก็บไว้
   String ssid = preferences.getString("ssid", "");
   String password = preferences.getString("password", "");
+  preferences.end();  // ปิดการใช้งาน Preferences
   // พยายามเชื่อมต่อ WiFi
   if (ssid.length() > 0 && password.length() > 0) {
     // ถ้า SSID และ Password มีค่า จะลองเชื่อมต่อ WiFi
     WiFi.begin(ssid.c_str(), password.c_str());
     Serial.print("Connecting to WiFi");
   }
-  preferences.end();  // ปิดการใช้งาน Preferences
+ 
   lastAttemptTime = millis();  // บันทึกเวลาที่พยายามเชื่อมต่อครั้งล่าสุด
 }
 

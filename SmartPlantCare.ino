@@ -365,6 +365,7 @@ void setup() {
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   Serial.begin(115200);  // be sure to set USB CDC On Boot: "Enabled"
 
+  setUpOTA();
   setupSDCard();
 
   tft.fillRect(0, 165, 130, 60, TFT_CYAN);  //horiz, vert
@@ -417,7 +418,6 @@ void setup() {
   preferences.end();
   // Serial.println("WetValue: " + String(wetValue));
   // Serial.println("DryValue: " + String(dryValue));
-  setUpOTA();
   setupSHT31();
   virtualWriteV0(0); // Send 0 when fist open
   Serial.println("**************** SetUp End ****************");
@@ -428,7 +428,7 @@ void loop() {
   loopServerSD();
   loopBlynk();
 
-  if (millis() - lastReadDataTime >= 300) {  // 300 ms = 0.3 วินาที
+  if (millis() - lastReadDataTime >= 500) {  // 500 ms = 0.5 วินาที
     sensorMin = getSensorMin();
     sensorMax = getSensorMax(); 
     soilMoisture = readSoilMoisture();  // อ่านค่าความชื้นในดิน
@@ -505,4 +505,5 @@ void loop() {
     // turn LED on:
     digitalWrite(PIN_LCD_BL, HIGH);
   }
+  delay(100);
 }
