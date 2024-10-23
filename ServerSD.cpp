@@ -60,7 +60,6 @@ void setupServerSD(const char *host, void (*callback)(String, String, String)) {
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
     startSDServer();
-    startHostName(host);
   } else {
     // ถ้าเชื่อมต่อไม่สำเร็จ
     Serial.println("\nFailed to connect \nStarting AP mode...");
@@ -71,17 +70,6 @@ void setupServerSD(const char *host, void (*callback)(String, String, String)) {
       checkWiFiConnection();
       delay(100);
     }
-    startHostName(host);
-  }
-}
-
-void startHostName(const char *host) {
-  if (MDNS.begin(host)) {
-    MDNS.addService("http", "tcp", 80);
-    Serial.println("MDNS responder started");
-    Serial.print("You can now connect to http://");
-    Serial.print(host);
-    Serial.println(".local");
   }
 }
 

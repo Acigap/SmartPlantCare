@@ -385,6 +385,7 @@ void setup() {
   tft.println("SmartPlantCare");
 
   initWiFi();                                  // ตั้งค่า wifi
+  setUpOTA();
   setupBlynk();                                // ตั้งค่า Blynk lib
   setupServerSD(hostSDServer, onStartAPMode);  // ตั้งค่า web server
 
@@ -418,7 +419,6 @@ void setup() {
   // Serial.println("WetValue: " + String(wetValue));
   // Serial.println("DryValue: " + String(dryValue));
   setupSHT31();
-  setUpOTA();
   virtualWriteV0(0); // Send 0 when fist open
   Serial.println("**************** SetUp End ****************");
 }
