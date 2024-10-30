@@ -21,6 +21,7 @@ static int switchPum = 0;
 int _sensorMin = 0;
 int _sensorMax = 0;
 unsigned long _connectedTime = 0;
+String blynToken = "";
 
 BLYNK_CONNECTED() {
     Blynk.syncAll();
@@ -98,6 +99,7 @@ void setupBlynk()
   String blynkTemplateID = preferences.getString("templateID", String(BLYNK_TEMPLATE_ID));  
   String blynkTemplateName = preferences.getString("templateName", String(BLYNK_TEMPLATE_NAME));  
   preferences.end();
+  blynToken = blynkAuthToken;
   delay(200);
   preferences.begin("ConfigParameter", false);
   _sensorMin = preferences.getInt("sensorMin", _sensorMin);  // ค่าเริ่มต้นคือ sensorMin
@@ -121,7 +123,7 @@ void setupBlynk()
 
 void loopBlynk()
 {
-  if(Blynk.connected() == false) {
+  if(Blynk.connected() == false && blynToken != BLYNK_AUTH_TOKEN) {
     if(_connectedTime != 0) { // เคย เชื่อมมามาแล้วแต่หลุด
       ESP.restart();
     } else if(WiFi.status() == WL_CONNECTED) { // ยังไม่เคยต่อได้แต่ ต่อ wifi ได้แล้ว 

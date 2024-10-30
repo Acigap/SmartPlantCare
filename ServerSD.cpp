@@ -362,7 +362,7 @@ void startWifiServer() {
       // ลองเชื่อมต่อ WiFi ด้วย SSID และรหัสผ่านที่กรอกเข้ามา
       WiFi.begin(newSSID.c_str(), newPassword.c_str());
       int attempt = 0;
-      const int max_attempts = 20;
+      const int max_attempts = 30;
       bool connected = false;
       // พยายามเชื่อมต่อ WiFi
       while (WiFi.status() != WL_CONNECTED && attempt < max_attempts) {
@@ -382,10 +382,14 @@ void startWifiServer() {
         Serial.print("IP Address: ");
         Serial.println(WiFi.localIP());
         server.send(200, "text/html", "<h1>Configuration saved and connected!</h1>");
+        delay(500);
+        Serial.println("Restarting ESP32...");
+        ESP.restart();
+      } else {
+        String html = "<h1>Configuration to " + newSSID + " fail!!</h1><p><a href='/'>Back to Menu</a></p>";
+        server.send(200, "text/html", html);  // ลิงก์กลับไปยังหน้าเมนู"
       }
-      delay(500);
-      Serial.println("Restarting ESP32...");
-      ESP.restart();
+     
     } else {
       server.send(400, "text/html", "<h1>Invalid input, please try again</h1>");
     }
